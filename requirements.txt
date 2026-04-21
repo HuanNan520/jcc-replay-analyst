@@ -1,0 +1,15 @@
+# 核心
+pydantic>=2.5
+httpx>=0.27
+pillow>=10.0
+numpy>=1.26
+
+# OCR · 中文数字识别（CPU 版够用 · GPU 版可选装 paddlepaddle-gpu）
+paddlepaddle>=2.6
+paddleocr>=3.0
+
+# CV · UI 元素检测（arrow_finder 需要）
+opencv-python>=4.9
+
+# 可选 · 如果直接从 mp4 录屏抽帧需要系统装 ffmpeg
+# 可选 · 接 VLM 本地推理需 vllm · 请按 https://docs.vllm.ai/ 单独安装

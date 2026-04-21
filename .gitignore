@@ -1,0 +1,47 @@
+# venv / build
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 模型权重 · 绝不入库
+models/
+*.safetensors
+*.bin
+*.ckpt
+*.gguf
+
+# 实时日志 / 游戏截图 / 数据库
+logs/
+*.log
+data/screens/
+data/game_log/
+*.db
+*.sqlite
+
+# 私密配置
+.env
+.env.*
+!.env.example
+config/local.*
+
+# 临时报告输出
+report.md
+report.json
+report_*.md
+report_*.json
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
