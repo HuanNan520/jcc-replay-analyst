@@ -20,5 +20,9 @@ opencv-python>=4.9
 # jcc-daida 运行时依赖：
 pyyaml>=6.0
 
+# 实时 coach · 建议广播服务
+fastapi>=0.115
+uvicorn[standard]>=0.32
+
 # 测试
 pytest>=8.0

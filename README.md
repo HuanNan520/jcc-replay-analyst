@@ -2,17 +2,21 @@
 
 [![CI](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml/badge.svg)](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml)
 
-> 把金铲铲对局录屏丢给 AI · 让它告诉你每个关键节点做对还是做错。
+> 金铲铲之战 AI 教练 · **实时对局建议** + **自动赛后复盘** 双入口。
 
 <p align="center">
-  <em>只读屏 · 不操作游戏 · 合规对局复盘工具</em>
+  <em>只读屏 · 不操作游戏 · OBS 虚拟摄像头驱动 · 合规</em>
 </p>
 
 ## 要解决的问题
 
-市面金铲铲工具只查**阵容表** —— 告诉你"这套强"。没人告诉你**你这局哪步错了**。
+市面金铲铲工具只查**阵容表** —— 告诉你"这套强"。没人在**你玩的时候**告诉你**该选哪个增强 · 要不要升人口 · 装备合给谁** · 也没人事后告诉你**这局哪步错了**。
 
-这个项目补空白：喂一局录屏 · AI 像教练一样指出你每个关键决策的得失。
+这个项目两头补：
+- **实时 coach**：玩家玩的时候 · OBS 把 MuMu 窗口推成虚拟摄像头 · Python 持续识别 · 决策点触发 LLM · 建议以半透明卡片浮现在 MuMu 窗口上方
+- **自动复盘**：对局结束自动合成整局复盘报告到 `reports/`（无需手动录屏）
+
+同一套感知层（VLM + OCR + CV + S16 知识 RAG）驱动两条路线。
 
 ## 示例报告
 
@@ -112,13 +116,35 @@ python scripts/analyze.py \
 - 结构化输出优先使用 vLLM 原生 `guided_json` · 降级到 `response_format: json_object`
 - 零网络依赖 · 开箱即本地跑 —— 迁云时只需另写一个 Analyzer 实现
 
+### 实时 coach 模式 · 数据源
+
+实时模式要求 Windows 原生 Python（不在 WSL） · 前置：
+
+1. 装 OBS Studio 并启动
+2. 添加 "Window Capture" 抓 MuMu 窗口
+3. OBS 右下 "Start Virtual Camera"
+4. `pip install -r requirements-windows.txt`
+5. `python scripts/test_obs_capture.py` 验证接入
+
+更详细的实时 coach 启动流程见后续 B2/B5 任务完成后的 README 更新。
+
 ## 项目状态
 
-**Work in progress** · 当前状态：
+**Work in progress** · 两条路线：
+
+### 复盘路线（MVP done）
 - ✅ 感知层（frame_monitor · ocr · vlm）已跑通 · 对真实金铲铲画面识别稳定
-- ✅ pipeline 骨架 · mock 模式下能跑完整流程出 markdown 报告
-- ✅ LLM 分析层已接本地 vLLM · 产出带量化反事实的真实复盘（见 `src/llm_analyzer.py`）
-- 🚧 金铲铲版本知识库（阵容/装备/羁绊 Meta）基础版已有 · 持续补充中
+- ✅ pipeline 骨架 · mock 模式能跑完整流程出 markdown 报告
+- ✅ LLM 分析层已接本地 vLLM · 产出带量化反事实的真实复盘（`src/llm_analyzer.py`）
+- ✅ S16 版本知识库接入 `jcc-daida` · 113 英雄 / 53 羁绊 / 10 套梯队阵容（`src/knowledge.py`）
+- ✅ 40 个 pytest 绿 · GitHub Actions CI 跑通
+
+### 实时 coach 路线（B 阶段 · 进行中 · 见 `tasks/README.md`）
+- 🚧 B1 · OBS 虚拟摄像头数据源（替代 ADB 截屏 · 合规更稳）
+- 🚧 B2 · 实时 tick loop + 复盘归集（对局结束自动合成报告）
+- 🚧 B3 · 低延迟决策 LLM · 6 类决策点 · 目标 ≤ 3 秒
+- 🚧 B4 · WebSocket 建议推送服务
+- 🚧 B5 · PyQt 桌面 overlay（半透明卡片浮在 MuMu 窗口上方）
 
 ## 为什么从代打转做分析
 

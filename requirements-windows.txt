@@ -1,0 +1,7 @@
+# requirements-windows.txt
+# Windows 原生 Python 专用 · 实时 coach pipeline 的数据源 + UI 会用到
+# 和 requirements.txt 一起 pip install · 不替换
+
+-r requirements.txt
+pygrabber>=0.2.0     ; sys_platform == "win32"
+# opencv-python 已在主 requirements · 这里只加 Windows 特有的
