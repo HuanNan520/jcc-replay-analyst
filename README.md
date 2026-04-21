@@ -22,6 +22,8 @@
 
 📄 [`examples/sample_report.md`](./examples/sample_report.md) — AI 生成的 markdown 报告样例
 
+📊 [`examples/sample_report.html`](./examples/sample_report.html) — AI 生成的 HTML 复盘报告（在浏览器打开 · 完整深色视觉风格）
+
 🎨 [`pitch/index.html`](./pitch/index.html) — 完整视觉呈现版（在浏览器打开）
 
 ## 技术架构

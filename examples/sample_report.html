@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对局复盘 · TFT-S17-20260422-demo</title>
+<style>
+:root {
+  --bg: #0b0912;
+  --bg-2: #13111c;
+  --bg-3: #1b1826;
+  --bg-4: #232032;
+  --border: #2a2538;
+  --border-soft: #1e1b2a;
+
+  --ink: #e8e5d8;
+  --ink-2: #a39d8e;
+  --ink-3: #6b6458;
+  --ink-4: #43403a;
+
+  --gold: #c9a45d;
+  --gold-bright: #e6c17a;
+  --gold-soft: #8b7244;
+  --gold-dim: rgba(201,164,93,0.14);
+  --gold-glow: rgba(201,164,93,0.4);
+
+  --vermilion: #b3432e;
+  --vermilion-bright: #d55a3f;
+  --vermilion-soft: rgba(179,67,46,0.18);
+
+  --celadon: #5a8b7a;
+  --celadon-soft: rgba(90,139,122,0.15);
+
+  --ochre: #9c7a3c;
+  --ochre-soft: rgba(156,122,60,0.15);
+
+  --font-serif-cn: "Songti SC","STSong","Source Han Serif SC","Noto Serif CJK SC","SimSun","FangSong",serif;
+  --font-serif-en: "Baskerville","Libre Baskerville","Hoefler Text",Georgia,"Times New Roman",serif;
+  --font-sans: "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,system-ui,sans-serif;
+  --font-mono: "SF Mono","JetBrains Mono","Menlo","Consolas","Courier New",monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.75;
+  font-feature-settings:"palt" 1;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 1200px 800px at 18% 12%,rgba(201,164,93,0.07),transparent 55%),
+    radial-gradient(ellipse 900px 600px at 88% 80%,rgba(179,67,46,0.045),transparent 60%),
+    radial-gradient(ellipse 800px 500px at 50% 50%,rgba(90,139,122,0.025),transparent 70%);
+  pointer-events:none;z-index:0;
+}
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.78 0 0 0 0 0.6 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:0.55;mix-blend-mode:overlay;pointer-events:none;z-index:1;
+}
+
+.page-wrap{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:40px 48px 80px;}
+
+::selection{background:var(--gold);color:var(--bg)}
+
+/* ── Header ── */
+.page-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:24px;margin-bottom:40px;
+  border-bottom:1px solid var(--border-soft);
+}
+.brand{display:flex;align-items:center;gap:14px;font-family:var(--font-serif-cn);}
+.brand-seal{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;
+  background:var(--vermilion);color:#f5e7d8;
+  font-size:20px;font-weight:400;
+  box-shadow:0 0 0 1px var(--vermilion),inset 0 0 0 2px rgba(255,255,255,0.12);
+  transform:rotate(-2deg);
+}
+.brand-text{font-size:17px;color:var(--gold);letter-spacing:0.2em;}
+.page-meta{font-family:var(--font-mono);font-size:11px;color:var(--ink-3);letter-spacing:0.1em;}
+
+/* ── Hero / KPI ── */
+.hero{
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-3));
+  border:1px solid var(--border);
+  padding:44px 48px 40px;
+  position:relative;
+  margin-bottom:40px;
+}
+.hero::before{
+  content:'';position:absolute;top:-1px;left:-1px;
+  width:64px;height:64px;
+  border-top:2px solid var(--gold);border-left:2px solid var(--gold);
+}
+.hero::after{
+  content:'';position:absolute;bottom:-1px;right:-1px;
+  width:64px;height:64px;
+  border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);
+}
+
+.hero-stamp{
+  position:absolute;top:28px;right:40px;
+  width:76px;height:76px;
+  background:var(--vermilion);color:#f5e7d8;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:var(--font-serif-cn);
+  transform:rotate(-4deg);
+  box-shadow:inset 0 0 0 3px rgba(255,230,200,0.15),inset 0 0 0 4px var(--vermilion),inset 0 0 0 5px rgba(255,230,200,0.15);
+  opacity:0.9;
+}
+.hero-stamp-top{font-size:14px;letter-spacing:0.1em;margin-bottom:2px;}
+.hero-stamp-bot{font-size:10px;letter-spacing:0.1em;opacity:0.85;}
+
+.hero-title-row{
+  display:flex;align-items:baseline;gap:16px;
+  margin-bottom:28px;padding-bottom:20px;
+  border-bottom:1px solid var(--border);
+}
+.hero-kind{font-family:var(--font-serif-cn);font-size:12px;color:var(--gold-soft);letter-spacing:0.3em;}
+.hero-match-id{font-family:var(--font-mono);font-size:18px;color:var(--ink);letter-spacing:0.05em;}
+
+.hero-body{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:40px;
+  margin-bottom:0;
+}
+.hero-meta{display:flex;flex-direction:column;gap:12px;}
+.meta-row{
+  display:grid;grid-template-columns:90px 1fr;
+  gap:12px;font-size:13px;align-items:baseline;
+}
+.meta-key{
+  color:var(--ink-3);letter-spacing:0.18em;font-size:11px;text-align:right;
+}
+.meta-val{
+  color:var(--ink);font-family:var(--font-mono);font-size:13px;
+  padding-bottom:5px;border-bottom:1px dotted var(--border);
+}
+
+.rank-card{
+  min-width:140px;text-align:center;
+  padding:18px 28px;
+  border:1px solid var(--gold-soft);
+  background:linear-gradient(180deg,rgba(201,164,93,0.06),rgba(201,164,93,0.01));
+}
+.rank-label{font-size:10px;letter-spacing:0.35em;color:var(--gold-soft);margin-bottom:8px;text-transform:uppercase;}
+.rank-big{
+  font-family:var(--font-serif-en);font-size:64px;line-height:1;
+  color:var(--gold-bright);letter-spacing:-0.04em;font-weight:400;
+}
+.rank-big span{font-size:20px;color:var(--gold-soft);margin-left:2px;letter-spacing:0;}
+.rank-hp{margin-top:8px;font-size:11px;color:var(--ink-2);letter-spacing:0.15em;}
+
+/* ── Key Rounds ── */
+.section-head{
+  font-family:var(--font-serif-cn);font-size:20px;color:var(--gold);
+  margin-bottom:20px;padding-bottom:12px;
+  border-bottom:1px solid var(--border);
+  letter-spacing:0.08em;
+}
+.section-head::before{content:'§ ';}
+
+.rounds-list{display:flex;flex-direction:column;}
+
+.round-item{
+  display:grid;grid-template-columns:80px 1fr auto;
+  gap:24px;padding:22px 4px;
+  border-bottom:1px dotted var(--border);
+  align-items:flex-start;
+  transition:background 0.25s;
+}
+.round-item:hover{background:rgba(201,164,93,0.025);}
+.round-item:last-child{border-bottom:none;}
+
+/* grade stamp */
+.grade-stamp{
+  width:72px;height:72px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-serif-cn);font-size:36px;font-weight:400;
+  position:relative;border:2px solid currentColor;
+  transform:rotate(-3deg);flex-shrink:0;
+}
+.grade-stamp::before{
+  content:'';position:absolute;inset:4px;
+  border:1px solid currentColor;opacity:0.5;
+}
+.grade-stamp.grade-优{color:var(--celadon);background:var(--celadon-soft);}
+.grade-stamp.grade-可{color:var(--ochre);background:var(--ochre-soft);}
+.grade-stamp.grade-差{color:var(--vermilion);background:var(--vermilion-soft);}
+
+.round-body{}
+.round-head-row{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;}
+.round-when{font-family:var(--font-mono);font-size:18px;color:var(--gold);letter-spacing:0.05em;}
+.round-what{font-family:var(--font-serif-cn);font-size:17px;color:var(--ink);letter-spacing:0.04em;}
+.round-comment{font-size:14px;line-height:1.85;color:var(--ink-2);max-width:560px;}
+
+.round-delta{
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-3);
+  text-align:right;letter-spacing:0.1em;
+  padding-top:4px;white-space:nowrap;
+}
+.round-delta b{
+  display:block;font-family:var(--font-serif-cn);font-size:18px;
+  color:var(--ink);font-weight:400;margin-top:4px;letter-spacing:0.05em;
+}
+
+/* empty rounds */
+.rounds-empty{
+  font-size:14px;color:var(--ink-3);
+  padding:24px 0;font-style:italic;
+}
+
+/* ── Summary ── */
+.summary-block{
+  margin-top:40px;padding:32px 40px;
+  background:linear-gradient(180deg,rgba(201,164,93,0.05),rgba(201,164,93,0.01));
+  border:1px solid var(--gold-soft);
+  border-left:3px solid var(--gold);
+  position:relative;
+}
+.summary-label{
+  font-size:10px;letter-spacing:0.4em;color:var(--gold);
+  margin-bottom:14px;text-transform:uppercase;
+}
+.summary-text{
+  font-family:var(--font-serif-cn);font-size:18px;line-height:1.95;
+  color:var(--ink);letter-spacing:0.02em;
+}
+
+/* ── Footer ── */
+.page-footer{
+  margin-top:56px;padding-top:24px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:11px;color:var(--ink-3);letter-spacing:0.15em;
+  border-top:1px solid var(--border-soft);
+}
+.page-footer a{color:var(--gold-soft);text-decoration:none;}
+.page-footer a:hover{color:var(--gold);}
+
+/* ── Responsive ── */
+@media(max-width:700px){
+  .page-wrap{padding:24px 20px 60px;}
+  .hero{padding:32px 24px 28px;}
+  .hero-body{grid-template-columns:1fr;}
+  .hero-stamp{top:14px;right:16px;width:58px;height:58px;}
+  .hero-stamp-top{font-size:11px;}
+  .hero-stamp-bot{font-size:9px;}
+  .rank-big{font-size:48px;}
+  .round-item{grid-template-columns:64px 1fr;}
+  .round-delta{grid-column:2;text-align:left;}
+  .grade-stamp{width:58px;height:58px;font-size:28px;}
+  .summary-block{padding:24px 20px;}
+}
+
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header class="page-header">
+    <div class="brand">
+      <span class="brand-seal">鑑</span>
+      <span class="brand-text">铲铲复盘</span>
+    </div>
+    <div class="page-meta">对局复盘报告 &nbsp;·&nbsp; 2026-04-22 02:26</div>
+  </header>
+
+  <!-- ─── Hero ─── -->
+  <section class="hero">
+    <div class="hero-stamp">
+      <span class="hero-stamp-top">复盘</span>
+      <span class="hero-stamp-bot">demo</span>
+    </div>
+
+    <div class="hero-title-row">
+      <span class="hero-kind">对 局 复 盘</span>
+      <span class="hero-match-id">TFT-S17-20260422-demo</span>
+    </div>
+
+    <div class="hero-body">
+      <div class="hero-meta">
+        <div class="meta-row"><span class="meta-key">对局编号</span><span class="meta-val">TFT-S17-20260422-demo</span></div>
+<div class="meta-row"><span class="meta-key">段位</span><span class="meta-val">铂金 II</span></div>
+<div class="meta-row"><span class="meta-key">核心阵容</span><span class="meta-val">法师 6 · 神谕 2 · 卡莎 C</span></div>
+<div class="meta-row"><span class="meta-key">对局时长</span><span class="meta-val">40m 00s</span></div>
+<div class="meta-row"><span class="meta-key">最终血量</span><span class="meta-val">14 HP</span></div>
+
+      </div>
+      <div class="rank-card">
+        <div class="rank-label">最 终 排 名</div>
+        <div class="rank-big">3<span>th</span></div>
+        <div class="rank-hp">HP 14</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Key Rounds ─── -->
+  <section style="margin-bottom:40px;">
+    <h2 class="section-head">关键回合</h2>
+    <div class="rounds-list">
+      <div class="round-item">
+  <div class="grade-stamp grade-优">优</div>
+  <div class="round-body">
+    <div class="round-head-row">
+      <span class="round-when">2-1</span>
+      <span class="round-what">选增强 · 法师之力</span>
+    </div>
+    <div class="round-comment">三选一分别是「法师之力」「利息强化」「棱彩法阵」。当前手牌已有安妮 + 尼可 + 法场三个 2 费法师底盘，「法师之力」与目标阵容法师 6 完全叠加，伤害溢出收益约 +18%。「利息强化」在当前存钱路线下收益偏低——存到 50g 利息封顶才 5g/回合，而法师之力在每个 PVP 回合均有体现。反事实：若选利息强化，整局期望伤害降低 15-20%，最终名次大概率从第 3 滑至第 4-5。此步三项（时机/品质/阵容契合）全对，评为优。</div>
+  </div>
+  <div class="round-delta"><b>+18% 伤害</b></div>
+</div>
+<div class="round-item">
+  <div class="grade-stamp grade-差">差</div>
+  <div class="round-body">
+    <div class="round-head-row">
+      <span class="round-when">3-2</span>
+      <span class="round-what">升 7 级后 D 牌不足 · 经济断崖</span>
+    </div>
+    <div class="round-comment">3-2 升到 7 级后手头 8g，应继续 D 牌到 10g 兜底线寻找卡莎 2 费合体。实际操作：升完 7 级仅 D 了 3 次（花约 9g）就停手，此时 HP 78 完全不在红线，没有节约的必要。错误点在于将「存钱」与「D 牌」混淆——存钱是不主动买经验，D 牌找关键棋子是阵容成型的核心操作，两者不冲突。此决策直接导致卡莎合体延迟 1.5 回合，进而在 3-5 到 4-2 区间多承受了约 12 点血量压力。反事实：若 3-2 继续 D 到 10g 兜底，卡莎极大概率在 3-4 前合体，后续连败段（4-1~4-3）可提前打出连胜盾，期望名次 2-3。</div>
+  </div>
+  <div class="round-delta"><b>-1.5 回合成型</b></div>
+</div>
+<div class="round-item">
+  <div class="grade-stamp grade-可">可</div>
+  <div class="round-body">
+    <div class="round-head-row">
+      <span class="round-when">4-1</span>
+      <span class="round-what">选择连败存钱 · HP 告急</span>
+    </div>
+    <div class="round-comment">4-1 手上 36g、HP 38，对手强度已到 4 费卡活跃段。此时赌连败存钱属于高风险策略——本赛季 S17 低费卡池相对浅，连败 streak 难以稳定维持超过 2 回合。HP 38 看似有余量，但 4 费段伤害单回合约 12-16 点，3 回合连败即可从 38 跌到 8 以内。正确节奏应是 3-5 转换策略——保留约 30g 存量的同时考虑升 8 强化阵容。但当前执行已属于「次优但未崩盘」，最终因 5-1 止损大 D 卡莎三星及时补救，损失可控。评为可。</div>
+  </div>
+  
+</div>
+<div class="round-item">
+  <div class="grade-stamp grade-优">优</div>
+  <div class="round-body">
+    <div class="round-head-row">
+      <span class="round-when">5-1</span>
+      <span class="round-what">止损大 D · 卡莎 3★ 出手</span>
+    </div>
+    <div class="round-comment">HP 18 悬崖边，果断将 30g 存量全部 D 出寻找卡莎三星所需的最后一张。运营节奏准确：此时继续存钱已无意义（再多挨一个大招就淘汰），唯一出路是拿到卡莎三星打出连胜盾止血。最终第 3 张卡莎在第 4 次刷新到手，卡莎三星装备「无尽之刃+巨人腰带+纳什之牙」完全成型，随后连胜两把从 HP 18 稳住到终局 HP 14 存活第 3 名。反事实：若该回合犹豫不决，多挨一把大概率被打出局，名次 5-8。关键时刻决策果断，是本局拿回前三的唯一节点。评为优。</div>
+  </div>
+  <div class="round-delta"><b>+2 名次</b></div>
+</div>
+<div class="round-item">
+  <div class="grade-stamp grade-可">可</div>
+  <div class="round-body">
+    <div class="round-head-row">
+      <span class="round-when">5-6</span>
+      <span class="round-what">终局 · 法师 6 阵容定型</span>
+    </div>
+    <div class="round-comment">最终阵容：卡莎三星（无尽+腰带+纳什）C 位，法师 6、神谕 2、虚空 3、守护 2。版本 T1.5 阵容，理论上限第 2-3 名，实际打到第 3，符合正常发挥。不足在于装备合成路线：3-2 节点本可以在 D 牌同时顺手合成「饮血之剑」而非等到 5-1 才补完装备。装备提前到位后卡莎在 4 费段的单局输出可高出约 25%。反事实：若 3-2 装备成型更早，4-1 连败段损血可减少约 8 点，止损时机更从容，有较大概率冲击第 2 名。</div>
+  </div>
+  
+</div>
+
+    </div>
+  </section>
+
+  <!-- ─── Summary ─── -->
+  <section>
+    <div class="summary-block">
+      <div class="summary-label">AI 总评</div>
+      <p class="summary-text">整局核心问题是 3-2 升 7 后 D 牌不足，导致卡莎合体延迟 1.5 回合，进而在 4 费活跃段承受了额外约 12 点被动失血。5-1 止损操作果断挽回局面，最终第 3 名已是此套法师 6 在当前残局条件下的合理上限。</p><p class="summary-text">若要改进：① 3-2 升 7 后应继续 D 到 10g 兜底（约多花 9g），卡莎可提前 1.5 回合合体；② 4-1 不赌连败，保 30g 存量同时评估升 8 时机；③ 装备合成路线前置，3-3 前完成主 C 核心件。按上述调整，期望名次从 3.0 上升至 2.0-2.5 区间，约提升 0.5-1 名。</p>
+    </div>
+  </section>
+
+  <!-- ─── Footer ─── -->
+  <footer class="page-footer">
+    <span>生成时间：2026-04-22 02:26</span>
+    <span><a href="https://github.com/HuanNan520/jcc-replay-analyst" target="_blank">by jcc-replay-analyst</a></span>
+  </footer>
+
+</div>
+</body>
+</html>

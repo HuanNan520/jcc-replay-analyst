@@ -70,6 +70,56 @@ SCHEMA_DESCRIPTION = """## 输出 schema
 """
 
 
+# 白名单：常见 TFT/金铲铲通用术语，不当英雄名对待
+_WHITELIST_TERMS: set[str] = {
+    "阵容", "羁绊", "装备", "海克斯", "主C", "副C", "经济", "连胜", "连败",
+    "强化", "增强", "转型", "D牌", "过渡", "节奏", "卡位", "满级", "刷新",
+    "前期", "中期", "后期", "开局", "收尾", "大病", "连损", "血线", "优势",
+    "劣势", "胜局", "败局", "吃鸡", "稳健", "激进", "保守", "扩展", "压血",
+    "小兵", "对战", "摆位", "棋盘", "备战", "候补", "三星", "二星", "一星",
+    "最终", "结算", "赛季", "版本", "强势", "弱势", "主流", "冷门", "特色",
+    "大后期", "小后期", "极限",
+}
+
+# 上下文提示词：前后有这些词时，中间片段更可能是专有名词（英雄/装备名）
+_CONTEXT_TRIGGERS: set[str] = {
+    "选", "到", "用", "合", "买", "卖", "推", "打",
+    "升", "出", "拿", "换", "带", "配", "开", "组",
+    "《", "【", "「", "（", "‘", "“",
+}
+
+# 中文连续片段提取正则
+_CJK_BLOCK_RE = re.compile(r"[一-鿿]+")
+# 英雄名样式：纯中文 2-6 字
+_HERO_NAME_RE = re.compile(r"^[一-鿿]{2,6}$")
+
+
+def _extract_candidate_names(text: str) -> list[str]:
+    """从文本中提取 2-6 字中文片段候选（上下文提示词触发版）。
+
+    策略：遍历每个连续中文块，对 2-6 字滑动窗口内的片段，仅当该片段
+    紧贴上下文触发词（前一字符或后一字符在 _CONTEXT_TRIGGERS 中）时才收集。
+    避免把整句话中间无触发的普通词也收进来。
+    """
+    candidates: list[str] = []
+    for block_match in _CJK_BLOCK_RE.finditer(text):
+        block = block_match.group()
+        block_start = block_match.start()
+        blen = len(block)
+        for size in range(2, 7):           # 2-6 字窗口
+            for offset in range(blen - size + 1):
+                frag = block[offset: offset + size]
+                if not _HERO_NAME_RE.match(frag):
+                    continue
+                abs_start = block_start + offset
+                abs_end = abs_start + size
+                pre_char = text[abs_start - 1] if abs_start > 0 else ""
+                post_char = text[abs_end] if abs_end < len(text) else ""
+                if pre_char in _CONTEXT_TRIGGERS or post_char in _CONTEXT_TRIGGERS:
+                    candidates.append(frag)
+    return candidates
+
+
 class LocalLLMAnalyzer:
     def __init__(
         self,
@@ -86,6 +136,7 @@ class LocalLLMAnalyzer:
         self.timeout = timeout
         self.api_key = api_key
         self.use_guided_json = use_guided_json
+        self.last_audit_warnings: list[str] = []
 
     async def synthesize(self, states: List[WorldState]) -> MatchReport:
         if not states:
@@ -165,6 +216,10 @@ class LocalLLMAnalyzer:
         report = _coerce_match_report(data, states)
         if self.knowledge is not None:
             self._audit_hallucinations(report)
+            warnings = self._scan_text_for_unknown_names_in_report(report)
+            if warnings:
+                self.last_audit_warnings = warnings
+                log.warning("LLM 全文扫描可疑专有名词 · %s", warnings)
         return report
 
     def _build_system_prompt(self) -> str:
@@ -208,6 +263,58 @@ class LocalLLMAnalyzer:
                 "summary 给一段通用复盘 · 把反事实落在「若数据可见时一般做法」上。\n\n"
             )
         return header + "\n".join(lines)
+
+    def _scan_text_for_unknown_names(self, text: str, knowledge) -> list[str]:
+        """tokenization 级别全文扫描 · 检测未知专有名词（不依赖引号）。
+
+        策略：
+        1. 维护 known = all_units | all_traits | all_items | all_augments
+        2. 用滑动窗口提取 2-6 字中文连续片段（仅上下文触发词邻接的片段）
+        3. 片段不在 known + 不在白名单 + 不是任何 known 词的子串 → 可疑候选
+        4. 去重后，仅保留不被其他可疑候选包含的最长形式（减少重复碎片噪声）
+        """
+        known: set[str] = set()
+        for attr in ("all_units", "all_traits", "all_items", "all_augments"):
+            val = getattr(knowledge, attr, None)
+            if isinstance(val, set):
+                known |= val
+
+        raw_candidates: list[str] = []
+        seen: set[str] = set()
+        for candidate in _extract_candidate_names(text):
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if candidate in known:
+                continue
+            if candidate in _WHITELIST_TERMS:
+                continue
+            # 过滤：片段是某个已知词的子串（避免把已知词局部碎片误报）
+            if any(candidate in kw for kw in known):
+                continue
+            raw_candidates.append(candidate)
+
+        # 仅保留不被其他候选包含的最长形式
+        suspicious: list[str] = [
+            c for c in raw_candidates
+            if not any(c != other and c in other for other in raw_candidates)
+        ]
+        return suspicious
+
+    def _scan_text_for_unknown_names_in_report(self, report: MatchReport) -> list[str]:
+        """对 report 的 summary / key_round.comment / core_comp 做全文扫描。"""
+        if self.knowledge is None:
+            return []
+        texts: list[str] = []
+        if report.summary:
+            texts.append(report.summary)
+        if report.core_comp:
+            texts.append(report.core_comp)
+        for rr in report.key_rounds:
+            if rr.comment:
+                texts.append(rr.comment)
+        combined = "".join(texts)
+        return self._scan_text_for_unknown_names(combined, self.knowledge)
 
     def _audit_hallucinations(self, report: MatchReport) -> None:
         """对 LLM 提到的英雄名跑 knowledge 校验 · 仅 log warn · 不改文本。"""

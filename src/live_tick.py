@@ -43,6 +43,7 @@ from .schema import WorldState, MatchReport
 from .decision_llm import DecisionLLM, DecisionContext, Advice
 from .knowledge import load_knowledge
 from .llm_analyzer import LocalLLMAnalyzer
+from .report_renderer import render_report_html
 
 log = logging.getLogger(__name__)
 
@@ -214,18 +215,20 @@ def _report_to_markdown(report: MatchReport) -> str:
 
 
 def _save_report(report: MatchReport, reports_dir: Path) -> Path:
-    """落盘 .md + .json 两份 · 返回 md 路径。"""
+    """落盘 .md + .json + .html 三份 · 返回 md 路径。"""
     reports_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     md_path = reports_dir / f"{report.match_id}-{stamp}.md"
     json_path = md_path.with_suffix(".json")
+    html_path = md_path.with_suffix(".html")
 
     md_path.write_text(_report_to_markdown(report), encoding="utf-8")
     json_path.write_text(
         report.model_dump_json(indent=2),
         encoding="utf-8",
     )
-    log.info("复盘已保存 · %s · %s", md_path, json_path)
+    html_path.write_text(render_report_html(report), encoding="utf-8")
+    log.info("复盘已保存 · %s · %s · %s", md_path, json_path, html_path)
     return md_path
 
 
