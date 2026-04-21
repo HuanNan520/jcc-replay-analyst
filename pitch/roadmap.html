@@ -373,8 +373,8 @@ footer a:hover { color: var(--gold-bright); }
   <div class="hero-stats">
     <div>
       <div class="k">Current Status</div>
-      <div class="v ok">阶段 B</div>
-      <div class="sub">A1–A4 ✓ · B1–B5 ✓ · C 规划中</div>
+      <div class="v ok">三阶段</div>
+      <div class="sub">A1–A4 ✓ · B1–B5 ✓ · C1/C4/C9-C14 ✓</div>
     </div>
     <div>
       <div class="k">Tests</div>
@@ -460,25 +460,27 @@ footer a:hover { color: var(--gold-bright); }
       </div>
 
       <!-- Phase C -->
-      <div class="phase todo">
+      <div class="phase done">
         <div class="num">C</div>
         <div class="body">
-          <h3>C 阶段 · 打磨与实战迭代</h3>
-          <div class="tag">planned · 按实战反馈优先级动态调整</div>
-          <p>B 阶段已有可跑的完整 MVP · C 阶段专注可见可感的打磨 + 实战观察驱动的 prompt 迭代。</p>
+          <h3>C 阶段 · 打磨与作品集化 · 完成</h3>
+          <div class="tag">8 项 commit · 作品集可直接分享</div>
+          <p>B 阶段 MVP 完成后 · 做了一轮可见可感的打磨：算法加固 · 产品门面升级 · 一键启动 · 环境自检。</p>
           <ul class="bullets">
-            <li>C1 · Hallucination audit 加强 · tokenization N-gram 比对</li>
-            <li>C2 · Decision prompt 实战迭代 · 观察真局输出</li>
-            <li>C3 · Overlay 视觉打磨 · 多卡片堆叠 · DPI 适配</li>
-            <li>C4 · Reports HTML 渲染器 · 复盘页美化</li>
-            <li>C5 · 集成 smoke demo 视频 · 作品集素材</li>
-            <li>C6 · S17 数据自动刷新 · PBE 数据动态更新</li>
+            <li>C1 · Hallucination audit 加强 · tokenization 滑动窗口 + 白名单</li>
+            <li>C4 · Reports HTML 渲染器 · 复盘 md/json/html 三联落盘</li>
+            <li>C9 · README 技术架构图翻新 · 双路径</li>
+            <li>C10 · scripts/e2e_smoke.py · WSL 自跑 50s 出 HTML 复盘</li>
+            <li>C11 · pitch/index.html 翻新为 AI 教练 landing</li>
+            <li>C12 · Positioning decode fix · pydantic field_validator</li>
+            <li>C13 · scripts/setup_check.py · 19 项环境自检</li>
+            <li>C14 · Windows 一键启动脚本 start_coach.bat/.ps1</li>
           </ul>
         </div>
         <div class="meta">
-          <span class="chip">NEXT</span>
-          <div>估 2–3 日</div>
-          <div>按 ROI 选 3</div>
+          <span class="chip">DONE</span>
+          <div>+ 4000 LOC</div>
+          <div>198 pytest</div>
         </div>
       </div>
 
