@@ -29,15 +29,28 @@
 
 ---
 
-## B1–B5 · 实时教练 pipeline
+## B1–B5 · 实时教练 pipeline（全部 ✅ 完成）
 
-| #  | 任务                         | 执行 AI             | 核心产出 | 依赖 |
+| #  | 任务                         | 执行 AI             | 核心产出 | 状态 |
 |----|------------------------------|---------------------|----------|------|
-| B1 | OBS 虚拟摄像头数据源         | **Sonnet 4.6**      | `src/capture_obs.py` · Windows 原生 Python | 无 |
-| B2 | 实时 tick loop + 复盘归集    | **Opus 4.7**        | `src/live_tick.py` · 协调感知 → 决策 → 广播 | B1 · B3 · B4 |
-| B3 | 低延迟决策 LLM（6 类）       | **Opus 4.7**        | `src/decision_llm.py` · 6 类短 prompt ≤3s | 无 |
-| B4 | WebSocket 建议推送服务       | **Sonnet 4.6**      | `src/advice_server.py` · FastAPI + `/ws/advice` | 无 |
-| B5 | PyQt 桌面 overlay            | **Opus 4.7**        | `src/overlay_ui.py` · Win32 FindWindow + 半透明卡片 | B4 |
+| B1 | OBS 虚拟摄像头数据源         | **Sonnet 4.6**      | `src/capture_obs.py` · Windows 原生 Python | ✅ |
+| B2 | 实时 tick loop + 复盘归集    | **Opus 4.7**        | `src/live_tick.py` · 协调感知 → 决策 → 广播 | ✅ |
+| B3 | 低延迟决策 LLM（6 类）       | **Opus 4.7**        | `src/decision_llm.py` · 6 类短 prompt ≤3s | ✅ |
+| B4 | WebSocket 建议推送服务       | **Sonnet 4.6**      | `src/advice_server.py` · FastAPI + `/ws/advice` | ✅ |
+| B5 | PyQt 桌面 overlay            | **Opus 4.7**        | `src/overlay_ui.py` · Win32 FindWindow + 半透明卡片 | ✅ |
+
+## C1–C14 · 打磨 + 作品集化（完成 8 项）
+
+| #  | 任务                         | 状态 | 产出 |
+|----|------------------------------|------|------|
+| C1 | Hallucinate audit 加强       | ✅   | llm_analyzer tokenization 扫描 + 白名单 |
+| C4 | Reports HTML 渲染器          | ✅   | `src/report_renderer.py` + demo_report.py + `examples/sample_report.html` |
+| C9 | README 技术架构图翻新        | ✅   | ASCII 双路径 + 表格 LLM 行改本地 vLLM |
+| C10 | e2e smoke 端到端 demo       | ✅   | `scripts/e2e_smoke.py` · WSL 50s 跑通 |
+| C11 | pitch/index.html 翻新       | ✅   | 1451 行 AI 教练 landing |
+| C12 | Positioning decode fix      | ✅   | pydantic field_validator coerce |
+| C13 | 环境自检脚本                | ✅   | `scripts/setup_check.py` · 19 项 |
+| C14 | Windows 一键启动            | ✅   | `scripts/start_coach.bat/.ps1` |
 
 ### 并行策略
 
