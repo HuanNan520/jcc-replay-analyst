@@ -169,6 +169,8 @@ python -m src.overlay_ui --ws-url ws://localhost:8765/ws/advice
 overlay 会自动找 MuMu 主窗口并贴边 · 决策点触发就淡入卡片 · 8 秒后淡出。
 开发调试时用 `--no-click-through` 可以点到 overlay 本身。
 
+**或者一条命令**（Windows）：`scripts\start_coach.bat`（或 `.ps1`）· 自动开 4 个终端跑完整链路。
+
 ## 项目状态
 
 **Work in progress** · 两条路线：
