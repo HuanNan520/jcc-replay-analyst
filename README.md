@@ -22,9 +22,9 @@
 
 ## 示例报告
 
-📄 [`examples/sample_report.md`](./examples/sample_report.md) — AI 生成的 markdown 报告样例
+📊 [`examples/sample_report.html`](./examples/sample_report.html) — **真 LLM 生成的 HTML 复盘**（浏览器打开 · 深色视觉 · 由 `scripts/demo_report.py` 跑本地 vLLM 产出）
 
-📊 [`examples/sample_report.html`](./examples/sample_report.html) — AI 生成的 HTML 复盘报告（在浏览器打开 · 完整深色视觉风格）
+📄 [`examples/sample_report.md`](./examples/sample_report.md) — 老 markdown mock（保留作对比 · 可手写理解字段结构）
 
 🎨 [`pitch/index.html`](./pitch/index.html) — 完整视觉呈现版（在浏览器打开）
 
