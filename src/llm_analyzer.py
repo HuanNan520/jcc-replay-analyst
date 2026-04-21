@@ -72,6 +72,7 @@ SCHEMA_DESCRIPTION = """## 输出 schema
 
 # 白名单：常见 TFT/金铲铲通用术语，不当英雄名对待
 _WHITELIST_TERMS: set[str] = {
+    # TFT 核心术语
     "阵容", "羁绊", "装备", "海克斯", "主C", "副C", "经济", "连胜", "连败",
     "强化", "增强", "转型", "D牌", "过渡", "节奏", "卡位", "满级", "刷新",
     "前期", "中期", "后期", "开局", "收尾", "大病", "连损", "血线", "优势",
@@ -79,6 +80,20 @@ _WHITELIST_TERMS: set[str] = {
     "小兵", "对战", "摆位", "棋盘", "备战", "候补", "三星", "二星", "一星",
     "最终", "结算", "赛季", "版本", "强势", "弱势", "主流", "冷门", "特色",
     "大后期", "小后期", "极限",
+    # 常见中文短语（普通动作/叙述）· 防止被误判为专有名词
+    "本局", "这局", "此局", "全局", "整局",
+    "若能", "若有", "如果", "假如", "否则",
+    "成功", "失败", "推进", "进攻", "防守",
+    "无敌", "强力", "效果", "影响", "操作",
+    "关键", "重要", "核心", "基础", "基本",
+    "稳定", "稳健", "激进", "选择", "考虑",
+    "开始", "结束", "完成", "达成", "实现",
+    "使用", "采用", "选用", "优先", "尽量",
+    "此时", "当时", "此刻", "时机", "时间",
+    "位置", "地位", "角色", "功能", "作用",
+    "连接", "合成", "拼接", "组合", "配合",
+    "无法", "能够", "可以", "应该", "必须",
+    "提升", "降低", "增加", "减少", "改变",
 }
 
 # 上下文提示词：前后有这些词时，中间片段更可能是专有名词（英雄/装备名）
@@ -97,9 +112,10 @@ _HERO_NAME_RE = re.compile(r"^[一-鿿]{2,6}$")
 def _extract_candidate_names(text: str) -> list[str]:
     """从文本中提取 2-6 字中文片段候选（上下文提示词触发版）。
 
-    策略：遍历每个连续中文块，对 2-6 字滑动窗口内的片段，仅当该片段
-    紧贴上下文触发词（前一字符或后一字符在 _CONTEXT_TRIGGERS 中）时才收集。
-    避免把整句话中间无触发的普通词也收进来。
+    策略：
+    - 遍历每个连续中文块，对 2-6 字滑动窗口内的片段做检测
+    - 片段本身不能以触发词起始或结尾（触发词应在片段外部邻接）
+    - 片段邻接字符中有触发词才收集
     """
     candidates: list[str] = []
     for block_match in _CJK_BLOCK_RE.finditer(text):
@@ -110,6 +126,9 @@ def _extract_candidate_names(text: str) -> list[str]:
             for offset in range(blen - size + 1):
                 frag = block[offset: offset + size]
                 if not _HERO_NAME_RE.match(frag):
+                    continue
+                # 片段不应以触发词起始或结尾（触发词是名称的上下文，不是名称本身）
+                if frag[0] in _CONTEXT_TRIGGERS or frag[-1] in _CONTEXT_TRIGGERS:
                     continue
                 abs_start = block_start + offset
                 abs_end = abs_start + size
@@ -281,20 +300,30 @@ class LocalLLMAnalyzer:
 
         raw_candidates: list[str] = []
         seen: set[str] = set()
+        whitelist_all = _WHITELIST_TERMS | known
         for candidate in _extract_candidate_names(text):
             if candidate in seen:
                 continue
             seen.add(candidate)
-            if candidate in known:
+            if candidate in whitelist_all:
                 continue
-            if candidate in _WHITELIST_TERMS:
+            # 过滤：片段是某个已知词/白名单词的子串（防止已知词局部碎片误报）
+            if any(candidate in kw for kw in whitelist_all):
                 continue
-            # 过滤：片段是某个已知词的子串（避免把已知词局部碎片误报）
-            if any(candidate in kw for kw in known):
+            # 过滤：片段完全由某个已知词/白名单词 + 紧接后缀构成（如"弗雷尔卓德羁"）
+            # 判据：片段以某个 ≥2 字的已知词开头 或 结尾，且已知词占片段长度 >50%
+            skip = False
+            for kw in whitelist_all:
+                if len(kw) < 2:
+                    continue
+                if (candidate.startswith(kw) or candidate.endswith(kw)) and len(kw) / len(candidate) > 0.5:
+                    skip = True
+                    break
+            if skip:
                 continue
             raw_candidates.append(candidate)
 
-        # 仅保留不被其他候选包含的最长形式
+        # 仅保留不被其他候选包含的最长形式（去掉噪声子串）
         suspicious: list[str] = [
             c for c in raw_candidates
             if not any(c != other and c in other for other in raw_candidates)

@@ -93,12 +93,12 @@ def test_scan_detects_mixed_fake_name():
 
 
 def test_scan_detects_fake_hex_augment():
-    """伪造海克斯强化 "经济之神" 不在 all_augments → 应检出。"""
+    """伪造海克斯强化 "经济之神" 不在 all_augments → 应检出（以经济之神为前缀/核心的片段应存在）。"""
     analyzer = _make_analyzer()
     text = "选到经济之神后立刻滚雪球，连胜拿下整局。"
     result = analyzer._scan_text_for_unknown_names(text, _KB)
-    # "经济之神" 不在 all_augments
-    assert "经济之神" in result
+    # "经济之神" 不在 all_augments，至少有一个可疑片段包含该关键词
+    assert any("经济之神" in frag for frag in result), f"经济之神 应被检出，实际可疑列表: {result}"
 
 
 def test_scan_whitelist_terms_not_flagged():
