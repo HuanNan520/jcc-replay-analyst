@@ -26,6 +26,19 @@
 
 🎨 [`pitch/index.html`](./pitch/index.html) — 完整视觉呈现版（在浏览器打开）
 
+🗺️ [`pitch/roadmap.html`](./pitch/roadmap.html) — 工程路线图（A/B/C 阶段进度可视化）
+
+## 端到端 smoke demo
+
+不依赖真 OBS · 不依赖 Windows · 在 WSL 里跑通全链路 · 50 秒内出一份 HTML 复盘：
+
+```bash
+python3 scripts/e2e_smoke.py
+# vLLM 可用时真跑 5 类 decisionLLM + 整局合成复盘
+# vLLM 不可用时自动 fallback · 仍能跑通 pipeline
+# 产出: /tmp/e2e_smoke_report.html (≈ 18 KB)
+```
+
 ## 技术架构
 
 ```
