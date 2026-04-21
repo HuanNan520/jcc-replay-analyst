@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jcc-replay-analyst · 工程路线图 · 2026-04-22</title>
+<style>
+:root {
+  --bg:          #0b0912;
+  --bg-2:        #13111c;
+  --bg-3:        #1b1826;
+  --border:      #2a2538;
+  --border-soft: #1e1b2a;
+  --ink:   #e8e5d8;
+  --ink-2: #a39d8e;
+  --ink-3: #6b6458;
+  --ink-4: #43403a;
+  --gold:        #c9a45d;
+  --gold-bright: #e6c17a;
+  --gold-soft:   #8b7244;
+  --gold-dim:    rgba(201,164,93,.14);
+  --vermilion:        #b3432e;
+  --vermilion-bright: #d55a3f;
+  --celadon:      #5a8b7a;
+  --celadon-bright:#7fb09b;
+  --ochre:      #9c7a3c;
+  --serif-cn: "Songti SC","STSong","Source Han Serif SC","Noto Serif CJK SC","SimSun",serif;
+  --serif-en: "Baskerville","Libre Baskerville",Georgia,"Times New Roman",serif;
+  --sans:     "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --mono:     "SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body::before {
+  content:''; position: fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 1100px 700px at 15% 10%, rgba(201,164,93,.06), transparent 55%),
+    radial-gradient(ellipse 900px 600px at 88% 75%, rgba(179,67,46,.045), transparent 60%);
+}
+body::after {
+  content:''; position: fixed; inset:0; z-index:1; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.78 0 0 0 0 0.6 0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .5; mix-blend-mode: overlay;
+}
+main { position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 56px 48px 96px; }
+@media (max-width: 820px) { main { padding: 40px 22px 72px; } }
+
+/* ==== masthead ==== */
+.masthead { margin-bottom: 44px; }
+.masthead .eyebrow {
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.masthead h1 {
+  font-family: var(--serif-cn);
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.masthead h1 .code {
+  font-family: var(--mono);
+  font-size: 28px;
+  color: var(--gold);
+}
+.masthead .meta-line {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.masthead .meta-line .dot { color: var(--gold-soft); margin: 0 8px; }
+.masthead .divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-soft) 0%, transparent 60%);
+  margin-top: 22px;
+}
+
+/* ==== hero stats ==== */
+.hero-stats {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+@media (max-width: 820px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+.hero-stats > div {
+  background: var(--bg-2);
+  padding: 22px 26px;
+  position: relative;
+}
+.hero-stats .k {
+  font-family: var(--serif-en);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.hero-stats .v {
+  font-family: var(--serif-cn);
+  font-size: 36px;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 6px;
+  font-weight: 400;
+}
+.hero-stats .v.ok { color: var(--celadon-bright); }
+.hero-stats .v.gold { color: var(--gold-bright); }
+.hero-stats .v .u {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-left: 5px;
+  font-weight: 400;
+}
+.hero-stats .sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ==== TLDR ==== */
+.tldr-card {
+  background: linear-gradient(140deg, var(--bg-2), var(--bg-3));
+  border: 1px solid var(--border);
+  padding: 30px 34px;
+  margin-bottom: 48px;
+  position: relative;
+}
+.tldr-card::before {
+  content:''; position:absolute; top:0; left:0;
+  width:72px; height:1px; background: var(--gold-bright);
+}
+.tldr-card .tldr {
+  font-family: var(--serif-cn);
+  font-size: 18px;
+  line-height: 1.95;
+  color: var(--ink);
+}
+.tldr-card .tldr strong { color: var(--gold-bright); font-weight: 500; }
+.tldr-card .tldr em { color: var(--celadon-bright); font-style: normal; }
+.tldr-card .tldr code {
+  font-family: var(--mono);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--gold);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+/* ==== section ==== */
+section { margin-bottom: 56px; }
+.section-head {
+  display: flex; align-items: baseline; gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-head .seal {
+  font-family: var(--serif-cn);
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+}
+.section-head .tag {
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.section-head .hint {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ==== phase cards ==== */
+.phase-list { display: flex; flex-direction: column; gap: 14px; }
+.phase {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  padding: 22px 28px;
+  display: grid;
+  grid-template-columns: 80px 1fr 120px;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .phase { grid-template-columns: 1fr; gap: 10px; padding: 20px; }
+}
+.phase.done { border-left-color: var(--celadon); }
+.phase.ongoing { border-left-color: var(--ochre); }
+.phase.todo { border-left-color: var(--gold-soft); }
+
+.phase .num {
+  font-family: var(--serif-cn);
+  font-size: 38px;
+  line-height: 1;
+  color: var(--ink-3);
+}
+.phase.done .num { color: var(--celadon-bright); }
+.phase.ongoing .num { color: var(--ochre); }
+
+.phase .body h3 {
+  font-family: var(--serif-cn);
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.phase .body .tag {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gold-soft);
+  margin-bottom: 10px;
+}
+.phase .body p {
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.75;
+  margin-bottom: 8px;
+}
+.phase .body .bullets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 18px;
+  margin-top: 10px;
+  list-style: none;
+}
+.phase .body .bullets li {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  padding-left: 14px;
+  position: relative;
+}
+.phase .body .bullets li::before {
+  content: '✓';
+  color: var(--celadon-bright);
+  position: absolute;
+  left: 0;
+  font-size: 12px;
+}
+.phase.todo .bullets li::before { content: '◇'; color: var(--gold-soft); }
+.phase.ongoing .bullets li::before { content: '→'; color: var(--ochre); }
+
+.phase .meta {
+  display: flex; flex-direction: column; gap: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.phase .meta .chip {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  letter-spacing: 0.08em;
+}
+.phase.done .meta .chip { color: var(--celadon-bright); border-color: var(--celadon); }
+.phase.ongoing .meta .chip { color: var(--ochre); border-color: var(--ochre); }
+.phase.todo .meta .chip { color: var(--gold); border-color: var(--gold-soft); }
+
+/* ==== pipeline diagram ==== */
+.pipeline {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  padding: 28px 32px;
+  overflow-x: auto;
+}
+.pipeline pre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre;
+}
+.pipeline pre .hi { color: var(--gold-bright); }
+.pipeline pre .dim { color: var(--ink-3); }
+.pipeline pre .v { color: var(--celadon-bright); }
+
+/* ==== comps preview ==== */
+.comps-table {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  padding: 0;
+  overflow-x: auto;
+}
+.comps-table table { width: 100%; border-collapse: collapse; }
+.comps-table th, .comps-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+.comps-table th {
+  background: var(--bg-3);
+  color: var(--ink-3);
+  font-family: var(--serif-en);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+.comps-table td.tier-S { color: var(--vermilion-bright); font-weight: 500; }
+.comps-table td.tier-A { color: var(--gold-bright); font-weight: 500; }
+.comps-table td.tier-B { color: var(--ochre); }
+.comps-table td.score {
+  font-family: var(--mono);
+  color: var(--gold-soft);
+}
+
+/* ==== footer ==== */
+footer {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+footer a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gold-soft);
+}
+footer a:hover { color: var(--gold-bright); }
+</style>
+</head>
+<body>
+
+<main>
+
+  <header class="masthead">
+    <div class="eyebrow">ENGINEERING ROADMAP · 2026-04-22</div>
+    <h1><span class="code">jcc-replay-analyst</span> · 工程路线图</h1>
+    <div class="meta-line">
+      main · <span style="color:var(--gold)">755bded</span>
+      <span class="dot">·</span>
+      <span style="color:var(--celadon-bright)">CI ✓ green</span>
+      <span class="dot">·</span>
+      131 pytest passed
+      <span class="dot">·</span>
+      5671 LOC (src + tests)
+    </div>
+    <div class="meta-line" style="margin-top:6px">
+      HuanNan520/jcc-replay-analyst · 合规金铲铲 AI 教练 · 实时对局建议 + 自动赛后复盘 双入口
+    </div>
+    <div class="divider"></div>
+  </header>
+
+  <!-- hero stats -->
+  <div class="hero-stats">
+    <div>
+      <div class="k">Current Status</div>
+      <div class="v ok">阶段 B</div>
+      <div class="sub">A1–A4 ✓ · B1–B5 ✓ · C 规划中</div>
+    </div>
+    <div>
+      <div class="k">Tests</div>
+      <div class="v ok">131<span class="u">passing</span></div>
+      <div class="sub">40 + 13 + 31 + 8 + 32 + 7</div>
+    </div>
+    <div>
+      <div class="k">S17 Knowledge</div>
+      <div class="v gold">73<span class="u">英雄</span></div>
+      <div class="sub">37 羁绊 · 591 装备 · 10 阵容</div>
+    </div>
+    <div>
+      <div class="k">Latency</div>
+      <div class="v gold">3–5<span class="u">s</span></div>
+      <div class="sub">6 类决策 · 本地 Qwen3-VL-4B-FP8</div>
+    </div>
+  </div>
+
+  <!-- TL;DR -->
+  <div class="tldr-card">
+    <p class="tldr">
+      项目已从初版"录屏复盘工具"pivot 到 <strong>实时 AI 教练 + 自动复盘</strong> 双入口架构。
+      完整感知 → 决策 → 广播 → UI 闭环跑通 —— OBS 虚拟摄像头驱动 <code>OBSCapture</code> ·
+      <code>FrameMonitor</code> 关键帧触发 · <code>VLMClient</code> 吐 <code>WorldState</code> ·
+      <code>_infer_decision_context</code> 六类触发 · <code>DecisionLLM</code> 3 秒内单点建议 ·
+      <code>advice_server</code> WebSocket 广播 · <code>overlay_ui</code> 半透明卡片浮于 MuMu 窗口之上。
+      对局结束触发 <code>LocalLLMAnalyzer</code> 自动合成复盘 markdown 落 <code>reports/</code>。
+      <em>百分百本地推理 · 零云 API 成本</em> · 合规姿态比 ADB 路线更稳。
+    </p>
+  </div>
+
+  <!-- 阶段时间线 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">一 · 阶段进度</div>
+      <div class="tag">Phase Timeline</div>
+      <div class="hint">A 阶段 = 复盘 MVP · B 阶段 = 实时 coach · C 阶段 = 打磨</div>
+    </div>
+    <div class="phase-list">
+
+      <!-- Phase A -->
+      <div class="phase done">
+        <div class="num">A</div>
+        <div class="body">
+          <h3>复盘路线 · MVP 完成</h3>
+          <div class="tag">A1–A4 · commit 60fd039 / 36475b7 / ae97e2c</div>
+          <p>吃一局录屏 → 感知层识别 → LLM 合成带量化反事实的教练点评 · 保存到 markdown 报告。</p>
+          <ul class="bullets">
+            <li>A1 · LocalLLMAnalyzer · vLLM + guided_json</li>
+            <li>A2 · 12 张真实 S16 帧 quickstart demo</li>
+            <li>A3 · jcc-daida 接入 · S16 知识库</li>
+            <li>A4 · pytest 40 个 + GitHub Actions CI</li>
+          </ul>
+        </div>
+        <div class="meta">
+          <span class="chip">DONE</span>
+          <div>5 days</div>
+          <div>+4021 LOC</div>
+        </div>
+      </div>
+
+      <!-- Phase B -->
+      <div class="phase done">
+        <div class="num">B</div>
+        <div class="body">
+          <h3>实时 coach 路线 · 全链路闭环</h3>
+          <div class="tag">B1–B5 · commit ae97e2c / 755bded</div>
+          <p>玩家打金铲铲的时候 · OBS 推虚拟摄像头 · Python 持续识别 · 决策点触发 LLM · 建议以半透明卡片浮在 MuMu 窗口上方。对局结束自动合成复盘。</p>
+          <ul class="bullets">
+            <li>B1 · OBSCapture 虚拟摄像头数据源</li>
+            <li>B2 · LiveTickLoop 中央枢纽</li>
+            <li>B3 · DecisionLLM 6 类 guided_json</li>
+            <li>B4 · advice_server FastAPI + WebSocket</li>
+            <li>B5 · PyQt6 overlay · Win32 FindWindow 跟随</li>
+            <li>S17 · knowledge.py 升级 · top4_rate 排序</li>
+          </ul>
+        </div>
+        <div class="meta">
+          <span class="chip">DONE</span>
+          <div>1 day</div>
+          <div>+1529 LOC</div>
+        </div>
+      </div>
+
+      <!-- Phase C -->
+      <div class="phase todo">
+        <div class="num">C</div>
+        <div class="body">
+          <h3>C 阶段 · 打磨与实战迭代</h3>
+          <div class="tag">planned · 按实战反馈优先级动态调整</div>
+          <p>B 阶段已有可跑的完整 MVP · C 阶段专注可见可感的打磨 + 实战观察驱动的 prompt 迭代。</p>
+          <ul class="bullets">
+            <li>C1 · Hallucination audit 加强 · tokenization N-gram 比对</li>
+            <li>C2 · Decision prompt 实战迭代 · 观察真局输出</li>
+            <li>C3 · Overlay 视觉打磨 · 多卡片堆叠 · DPI 适配</li>
+            <li>C4 · Reports HTML 渲染器 · 复盘页美化</li>
+            <li>C5 · 集成 smoke demo 视频 · 作品集素材</li>
+            <li>C6 · S17 数据自动刷新 · PBE 数据动态更新</li>
+          </ul>
+        </div>
+        <div class="meta">
+          <span class="chip">NEXT</span>
+          <div>估 2–3 日</div>
+          <div>按 ROI 选 3</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 数据流 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">二 · 实时 coach 数据流</div>
+      <div class="tag">Live Coach Pipeline</div>
+      <div class="hint">端到端 · 单决策 ≤ 3 秒</div>
+    </div>
+    <div class="pipeline">
+<pre><span class="dim">玩家在 Windows 上玩 MuMu 里的金铲铲 S17</span>
+                    │
+                    ▼
+        <span class="hi">OBS Studio</span> 抓 MuMu 窗口 → <span class="hi">虚拟摄像头</span>（Windows 视频设备）
+                    │ <span class="dim">1-3 fps · cv2.VideoCapture(N, DSHOW)</span>
+                    ▼
+        <span class="hi">src.capture_obs.OBSCapture.frames()</span>  →  PNG bytes
+                    │
+                    ▼
+        <span class="hi">src.frame_monitor.FrameMonitor</span>  dHash 关键帧检测
+                    │ <span class="dim">ROI: hud_top / trait_left / carry_zone / shop_bottom / ...</span>
+                    ▼
+        <span class="hi">src.vlm_client.VLMClient</span>  Qwen3-VL-4B-FP8 吐 WorldState
+                    │
+                    ▼
+        <span class="hi">src.live_tick._infer_decision_context</span>
+                    │ <span class="dim">augment / carousel / positioning / level / item / shop跳</span>
+                    ▼
+        <span class="hi">src.decision_llm.DecisionLLM.decide</span>  +  <span class="v">KnowledgeProvider (S17)</span>
+                    │ <span class="dim">guided_json · 6 套 Advice schema · ≤ 3s</span>
+                    ▼
+        <span class="hi">src.advice_server</span>  POST /advice → WebSocket 广播
+                    │
+                    ▼
+        <span class="hi">src.overlay_ui.OverlayWindow</span>  PyQt6 · 半透明卡片
+                    │ <span class="dim">Win32 FindWindow 跟随 MuMu 几何 · 8s 淡入淡出</span>
+                    ▼
+                 <span class="v">玩家决策</span>
+
+         <span class="dim">[对局结束 · stage==end]</span>
+                    │
+                    ▼
+        <span class="hi">src.llm_analyzer.LocalLLMAnalyzer.synthesize</span>  (复用 A1 逻辑)
+                    │
+                    ▼
+        <span class="v">reports/TFT-S17-YYYYMMDD-HHMM.md</span> + .json</pre>
+    </div>
+  </section>
+
+  <!-- S17 Comps 表 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">三 · S17 阵容梯队（top4_rate 排序）</div>
+      <div class="tag">S17 Meta Comps</div>
+      <div class="hint">from jcc-daida · lolchess 真实数据</div>
+    </div>
+    <div class="comps-table">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>阵容</th>
+            <th>Tier</th>
+            <th>Top4 Rate</th>
+            <th>主 C</th>
+            <th>核心单位</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>薇古丝 Carry</td><td class="tier-S">S</td><td class="score">0.86</td><td>薇古丝</td><td style="font-size:12px;color:var(--ink-3)">亚托克斯 · 阿卡丽 · 努努和威朗普 · 布里茨 · ...</td></tr>
+          <tr><td>2</td><td>薇古丝 Carry</td><td class="tier-A">A</td><td class="score">0.81</td><td>薇古丝</td><td style="font-size:12px;color:var(--ink-3)">变体阵容</td></tr>
+          <tr><td>3</td><td>库奇 Carry</td><td class="tier-A">A</td><td class="score">0.80</td><td>库奇</td><td style="font-size:12px;color:var(--ink-3)">AP 后排核心</td></tr>
+          <tr><td>4</td><td>布里茨 Carry</td><td class="tier-B">B</td><td class="score">0.78</td><td>布里茨</td><td style="font-size:12px;color:var(--ink-3)">前排法师 hybrid</td></tr>
+          <tr><td>5</td><td>慎 Carry</td><td class="tier-B">B</td><td class="score">0.76</td><td>慎</td><td style="font-size:12px;color:var(--ink-3)">坦克流</td></tr>
+          <tr><td colspan="6" style="color:var(--ink-3);text-align:center;font-size:12px;padding:14px">... 另外 5 套可通过 <code style="color:var(--gold);font-family:var(--mono)">load_knowledge().comps_table()</code> 查看 ...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>
+      生成 · 2026-04-22 by Claude Opus 4.7 ·
+      baseline <code>755bded</code> ·
+      131 pytest · CI ✓
+    </span>
+    <span>
+      <a href="https://github.com/HuanNan520/jcc-replay-analyst">Repo</a> ·
+      <a href="./index.html">设计 Pitch</a> ·
+      <a href="../tasks/README.md">任务清单</a> ·
+      <a href="../README.md">Main README</a>
+    </span>
+  </footer>
+
+</main>
+</body>
+</html>
