@@ -45,3 +45,8 @@ report_*.json
 *.swo
 .DS_Store
 Thumbs.db
+
+# reports · 对局复盘产物 · 不入库 · 保留目录和说明
+reports/*
+!reports/.gitkeep
+!reports/README.md
