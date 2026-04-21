@@ -24,7 +24,7 @@ import time
 from typing import Literal, Optional, Protocol, Union
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .schema import WorldState
 
@@ -93,6 +93,26 @@ class PositioningAdvice(AdviceBase):
     main_carry_col: int = Field(..., ge=0, le=6)
     bait_unit: Optional[str] = Field(None, description="用什么做诱饵")
     notes: list[str] = Field(default_factory=list)
+
+    @field_validator("main_carry_row", mode="before")
+    @classmethod
+    def _coerce_row(cls, v: object) -> int:
+        """容错：将字符串/浮点 coerce 成 int · 越界后 clamp 到 [0, 3]。"""
+        try:
+            v = int(float(str(v)))
+        except (ValueError, TypeError):
+            v = 3  # 默认后排
+        return max(0, min(3, v))
+
+    @field_validator("main_carry_col", mode="before")
+    @classmethod
+    def _coerce_col(cls, v: object) -> int:
+        """容错：将字符串/浮点 coerce 成 int · 越界后 clamp 到 [0, 6]。"""
+        try:
+            v = int(float(str(v)))
+        except (ValueError, TypeError):
+            v = 3  # 默认中间列
+        return max(0, min(6, v))
 
 
 class ItemAdvice(AdviceBase):

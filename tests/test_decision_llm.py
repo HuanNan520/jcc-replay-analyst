@@ -445,6 +445,126 @@ def test_decision_context_accepts_all_kinds():
         DecisionContext(kind=kind)  # type: ignore[arg-type]
 
 
+# ==================== PositioningAdvice coerce 容错 ====================
+
+@pytest.mark.parametrize(
+    "row_in,col_in,expected_row,expected_col,desc",
+    [
+        (3, 2, 3, 2, "normal int"),
+        ("3", "6", 3, 6, "string digits → int"),
+        (2.9, 5.1, 2, 5, "float → int (truncated)"),
+        (10, 99, 3, 6, "out-of-range high → clamped to max"),
+        (-5, -1, 0, 0, "negative → clamped to 0"),
+        ("后排", "右下", 3, 3, "non-numeric string → default fallback"),
+        ("3.0", "6.0", 3, 6, "float-string → int"),
+    ],
+)
+def test_positioning_advice_coerce_row_col(row_in, col_in, expected_row, expected_col, desc):
+    """PositioningAdvice 对 main_carry_row/col 的 coerce 容错验证。"""
+    advice = PositioningAdvice(
+        kind="positioning",
+        reasoning="对位测试 " * 10,
+        confidence=0.7,
+        main_carry_row=row_in,
+        main_carry_col=col_in,
+    )
+    assert advice.main_carry_row == expected_row, f"[{desc}] row mismatch"
+    assert advice.main_carry_col == expected_col, f"[{desc}] col mismatch"
+    # 最终值始终在有效边界内
+    assert 0 <= advice.main_carry_row <= 3, f"[{desc}] row out of bounds"
+    assert 0 <= advice.main_carry_col <= 6, f"[{desc}] col out of bounds"
+
+
+def test_positioning_advice_coerce_does_not_affect_other_fields():
+    """coerce 只影响 row/col · 不改动 reasoning/confidence/bait_unit/notes。"""
+    advice = PositioningAdvice(
+        kind="positioning",
+        reasoning="对位分析：刺客可跳后排 · 建议主C放右侧角落 · 盖伦前排吸引仇恨。",
+        confidence=0.85,
+        main_carry_row="2",  # string → 2
+        main_carry_col="5",  # string → 5
+        bait_unit="盖伦",
+        notes=["前排放盖伦", "主C放右侧"],
+    )
+    assert advice.reasoning.startswith("对位分析")
+    assert advice.confidence == pytest.approx(0.85)
+    assert advice.bait_unit == "盖伦"
+    assert advice.notes == ["前排放盖伦", "主C放右侧"]
+    assert advice.main_carry_row == 2
+    assert advice.main_carry_col == 5
+
+
+def test_positioning_coerce_with_mock_llm_string_output(monkeypatch):
+    """模拟 LLM 吐字符串数字 · decide 走正常路径而非 fallback。"""
+    import asyncio
+    import json
+
+    ws = _blank_ws()
+    ctx = DecisionContext(kind="positioning", options=[])
+
+    # LLM 吐字符串形式的坐标（常见 bad output）
+    llm_reply = {
+        "kind": "positioning",
+        "reasoning": "对手有刺客 · 主C建议放后排角落 · 盖伦前排吸引火力 · 安妮后排输出更安全。",
+        "confidence": 0.75,
+        "main_carry_row": "3",   # 字符串 → coerce → 3
+        "main_carry_col": "0",   # 字符串 → coerce → 0
+        "bait_unit": None,
+        "notes": [],
+    }
+
+    transport = _MockTransport({
+        "choices": [{"message": {"content": json.dumps(llm_reply)}}],
+        "usage": {"prompt_tokens": 200, "completion_tokens": 80},
+    })
+    monkeypatch.setattr(httpx, "AsyncClient", _patched_client_factory(transport))
+
+    llm = DecisionLLM()
+    advice = asyncio.run(llm.decide(ws, ctx))
+
+    # 关键：不走 fallback · confidence > 0
+    assert isinstance(advice, PositioningAdvice)
+    assert advice.confidence == pytest.approx(0.75), "不应走 fallback"
+    assert advice.main_carry_row == 3
+    assert advice.main_carry_col == 0
+
+
+def test_positioning_coerce_with_mock_llm_outofrange_output(monkeypatch):
+    """模拟 LLM 吐越界数值 · coerce 后 clamp · 不走 fallback。"""
+    import asyncio
+    import json
+
+    ws = _blank_ws()
+    ctx = DecisionContext(kind="positioning", options=[])
+
+    # LLM 吐越界值
+    llm_reply = {
+        "kind": "positioning",
+        "reasoning": "对手有巨魔 · 主C建议放最深后排右侧 · 拉开距离避免被冲脸 · 前排盖伦挡线。",
+        "confidence": 0.68,
+        "main_carry_row": 7,    # 越界 → clamp → 3
+        "main_carry_col": 10,   # 越界 → clamp → 6
+        "bait_unit": "盖伦",
+        "notes": ["前排顶线"],
+    }
+
+    transport = _MockTransport({
+        "choices": [{"message": {"content": json.dumps(llm_reply)}}],
+        "usage": {"prompt_tokens": 210, "completion_tokens": 85},
+    })
+    monkeypatch.setattr(httpx, "AsyncClient", _patched_client_factory(transport))
+
+    llm = DecisionLLM()
+    advice = asyncio.run(llm.decide(ws, ctx))
+
+    assert isinstance(advice, PositioningAdvice)
+    assert advice.confidence == pytest.approx(0.68), "不应走 fallback"
+    assert 0 <= advice.main_carry_row <= 3
+    assert 0 <= advice.main_carry_col <= 6
+    assert advice.main_carry_row == 3   # clamped
+    assert advice.main_carry_col == 6   # clamped
+
+
 # ==================== Zero hallucinated imports ====================
 
 def test_decision_llm_source_has_no_openai_or_anthropic_sdk_import():
