@@ -29,28 +29,34 @@
 ## 技术架构
 
 ```
- 一局录屏
-    │
-    ▼
- frame_monitor   抽出关键帧 · 每局 ~34 张 · 省 95% 冗余计算
-    │
-    ├─────────────┬─────────────┐
-    ▼             ▼             ▼
- ocr_client   arrow_finder   vlm_client
- PaddleOCR    OpenCV         Qwen2.5-VL
- HP/金币/等级 棋子/装备/UI   羁绊/阵容/语义
-    │             │             │
-    └─────────────┼─────────────┘
-                  ▼
-            WorldState
-         （结构化状态序列）
-                  │
-                  ▼
-            analyzer · LLM
-       （Claude API / 本地 · 金铲铲版本 RAG）
-                  │
-                  ▼
-           MatchReport · Markdown
+                    数据源层（二选一）
+   ┌──────────────────────┬──────────────────────┐
+   │  OBS Virtual Camera  │  mp4 录屏 / 截图序列  │
+   │  (实时 coach 路线)   │  (赛后复盘路线)      │
+   └──────────┬───────────┴──────────┬───────────┘
+              │                      │
+              ▼                      ▼
+      ┌───────────────────────────────────────┐
+      │  共享感知层                           │
+      │  frame_monitor (dHash 关键帧)          │
+      │  ocr_client (PaddleOCR 数字)           │
+      │  vlm_client (Qwen3-VL 语义)            │
+      │  → WorldState                         │
+      └──────────┬────────────────┬───────────┘
+                 │                │
+                 ▼                ▼
+     ┌─────────────────┐  ┌──────────────────┐
+     │  实时 coach     │  │  赛后复盘         │
+     │  live_tick →    │  │  analyzer →       │
+     │  decision_llm   │  │  llm_analyzer →   │
+     │  (6 类 ≤3s) →   │  │  MatchReport →    │
+     │  advice_server  │  │  md/json/html     │
+     │  → overlay_ui   │  │  (复用实时路径的  │
+     │  (半透明卡片)   │  │   对局结束归集)    │
+     └─────────────────┘  └──────────────────┘
+
+            S17 版本知识库（jcc-daida）·
+            → KnowledgeProvider 注入两路径
 ```
 
 **混合架构的设计理由** · 让专精模型做专精事：
@@ -60,7 +66,7 @@
 | OCR · PaddleOCR | 读 HP / 金币 / 等级 中文数字 | Qwen2.5-VL 读 HP 常错 1-2 · OCR 稳定 99%+ |
 | CV · OpenCV | 找装备图标 · 高亮 UI 元素 | 颜色/形状匹配 30 行代码够用 · 快且准 |
 | VLM · Qwen2.5-VL | 羁绊语义 · 阵容分类 | VLM 该做的事 · 不让它读数字 |
-| LLM · Claude / 本地 | 生成评分与叙事 | 需要金铲铲版本知识库 RAG |
+| LLM · 本地 vLLM | 生成评分与叙事 | 需要金铲铲版本知识库 RAG · 默认本地零 API 成本 |
 
 **各层独立失败不互相污染** · 比押注单一大 VLM 模型稳得多。
 
