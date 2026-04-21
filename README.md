@@ -102,15 +102,15 @@ python scripts/analyze.py \
 # 也可以 VLM + LLM 一起真跑 · 把 --vlm mock 换成 --vlm real 即可
 ```
 
-### 运行时依赖 · 本地推理红线
+### 运行时 · 默认本地推理
 
-**本项目 100% 本地推理 · 零云 API key**。
+**默认走本地 vLLM · 零 API 成本 · 开箱即用**。不锁死本地 —— 想付费接云 API（Claude / OpenAI / 其他），写一个满足同样接口的 `CloudLLMAnalyzer` 替换即可。
 
 - 感知层（VLM）走本地 vLLM · OpenAI 兼容接口
 - 分析层（LLM）同样走本地 vLLM · 默认和感知层复用同一实例和模型
-- **严禁**引入 `anthropic` / `openai` / 任何云 SDK —— 仅用 `httpx` 直打 `/v1/chat/completions`
+- 默认不引入 `anthropic` / `openai` 作为硬依赖（云 API 成本远高于自建跑 Qwen）· 仅用 `httpx` 直打 `/v1/chat/completions`
 - 结构化输出优先使用 vLLM 原生 `guided_json` · 降级到 `response_format: json_object`
-- 没有网 · 没有 key · 没有"云 fallback" —— 本地起不来就直接报错
+- 零网络依赖 · 开箱即本地跑 —— 迁云时只需另写一个 Analyzer 实现
 
 ## 项目状态
 

@@ -1,8 +1,8 @@
 """本地 LLM 分析层 —— 把 WorldState 序列合成一份 MatchReport。
 
-红线：
-  - 只走本地 vLLM OpenAI 兼容接口（默认 http://localhost:8000/v1）
-  - 严禁 import anthropic / openai / 任何云 SDK
+默认路线（非硬约束 · fork 换云自行扩展）：
+  - 走本地 vLLM OpenAI 兼容接口（默认 http://localhost:8000/v1）· 自建零成本
+  - 不内置 anthropic / openai 等云 SDK 依赖 · 仅 httpx · 要换云自己加一个实现
   - 结构化输出优先用 vLLM guided_json · 降级到 response_format json_object
   - vLLM 内建 automatic prefix caching · system prompt 复用 KV cache · 不需要 client 端
     cache_control（那是 Anthropic 特有）
