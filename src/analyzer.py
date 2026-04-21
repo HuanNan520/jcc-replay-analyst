@@ -14,7 +14,12 @@ Pipeline:
     ↓
   LLM 分析器（带金铲铲版本知识 RAG） · 生成 MatchReport
 
-本模块是骨架 · 每一层的 stub 都留了 TODO 标记 · 接上真实模型即可跑。
+本模块是复盘路线的 pipeline 编排 · 感知 + LLM 都已接真实实现：
+  - VLMClient (vlm_client.py) 走本地 vLLM Qwen3-VL
+  - LocalLLMAnalyzer (llm_analyzer.py) 走本地 vLLM guided_json
+  - S17 KnowledgeProvider (knowledge.py) 从 jcc-daida 取版本数据
+
+实时 coach 路线见 src/live_tick.py · 共享同一套感知 + LLM 层。
 """
 from __future__ import annotations
 
