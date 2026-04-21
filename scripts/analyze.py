@@ -84,6 +84,10 @@ async def main():
     ap.add_argument("--vlm", choices=["real", "mock"], default="mock")
     ap.add_argument("--llm", choices=["real", "mock"], default="mock")
     ap.add_argument("--vlm-url", default="http://localhost:8000/v1")
+    ap.add_argument("--llm-url", default="http://localhost:8000/v1",
+                    help="本地 vLLM OpenAI 兼容 URL · 默认和 VLM 复用同一实例")
+    ap.add_argument("--llm-model", default="Qwen3-VL-8B-FP8",
+                    help="分析层 LLM 模型名 · 默认复用感知层的 Qwen3-VL-8B-FP8")
     ap.add_argument("--log", default="INFO")
     args = ap.parse_args()
 
@@ -102,6 +106,8 @@ async def main():
         vlm_base_url=args.vlm_url,
         vlm_mode=args.vlm,
         llm_mode=args.llm,
+        llm_base_url=args.llm_url,
+        llm_model=args.llm_model,
     ))
 
     report = await analyzer.analyze_frames(frames)

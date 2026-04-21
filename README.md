@@ -1,5 +1,7 @@
 # jcc-replay-analyst
 
+[![CI](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml/badge.svg)](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml)
+
 > 把金铲铲对局录屏丢给 AI · 让它告诉你每个关键节点做对还是做错。
 
 <p align="center">
@@ -80,7 +82,7 @@ pip install -r requirements.txt
 # 2. 纯骨架跑（mock VLM · mock LLM · 验证 pipeline）
 python scripts/analyze.py --frames examples/sample_frames/ --vlm mock --llm mock --out report.md
 
-# 3. 接真 VLM（需要本地 vLLM 跑 Qwen2.5-VL-7B）
+# 3. 接真 VLM（需要本地 vLLM 跑 Qwen2.5-VL 或 Qwen3-VL）
 python -m vllm.entrypoints.openai.api_server \
   --model Qwen/Qwen2.5-VL-7B-Instruct-AWQ \
   --port 8000 &
@@ -88,15 +90,35 @@ python scripts/analyze.py --frames path/to/frames/ --vlm real --out report.md
 
 # 4. 从 mp4 录屏直接抽帧分析
 python scripts/analyze.py --video match.mp4 --every-s 5 --vlm real --out report.md
+
+# 5. 接本地 LLM 分析层（分析和感知复用同一个 vLLM 实例）
+#    显存 ≥ 14GB free 用 Qwen3-VL-8B-FP8 · 紧张（如 16GB 卡还跑了模拟器）降到 Qwen3-VL-4B-FP8
+python scripts/analyze.py \
+  --frames examples/sample_frames/ \
+  --vlm mock --llm real \
+  --llm-url http://localhost:8000/v1 \
+  --llm-model Qwen3-VL-4B-FP8 \
+  --out report.md
+# 也可以 VLM + LLM 一起真跑 · 把 --vlm mock 换成 --vlm real 即可
 ```
+
+### 运行时依赖 · 本地推理红线
+
+**本项目 100% 本地推理 · 零云 API key**。
+
+- 感知层（VLM）走本地 vLLM · OpenAI 兼容接口
+- 分析层（LLM）同样走本地 vLLM · 默认和感知层复用同一实例和模型
+- **严禁**引入 `anthropic` / `openai` / 任何云 SDK —— 仅用 `httpx` 直打 `/v1/chat/completions`
+- 结构化输出优先使用 vLLM 原生 `guided_json` · 降级到 `response_format: json_object`
+- 没有网 · 没有 key · 没有"云 fallback" —— 本地起不来就直接报错
 
 ## 项目状态
 
 **Work in progress** · 当前状态：
 - ✅ 感知层（frame_monitor · ocr · vlm）已跑通 · 对真实金铲铲画面识别稳定
 - ✅ pipeline 骨架 · mock 模式下能跑完整流程出 markdown 报告
-- 🚧 LLM 分析层仍是 placeholder · 接 Claude API 与版本 RAG 是下一步
-- 🚧 金铲铲版本知识库（阵容/装备/羁绊 Meta）待填充
+- ✅ LLM 分析层已接本地 vLLM · 产出带量化反事实的真实复盘（见 `src/llm_analyzer.py`）
+- 🚧 金铲铲版本知识库（阵容/装备/羁绊 Meta）基础版已有 · 持续补充中
 
 ## 为什么从代打转做分析
 

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from .frame_monitor import FrameMonitor
+from .knowledge import S16Knowledge, load_s16_knowledge
 from .ocr_client import recognize, find_number_near
 from .vlm_client import VLMClient
 from .schema import MatchReport, RoundReview, WorldState
@@ -38,8 +39,11 @@ class AnalyzerConfig:
     vlm_model: str = "Qwen/Qwen2.5-VL-7B-Instruct"
     vlm_mode: str = "real"                # real / mock
     llm_mode: str = "mock"                # real / mock（未接入前先 mock）
+    llm_base_url: str = "http://localhost:8000/v1"
+    llm_model: str = "Qwen3-VL-8B-FP8"
     screen_w: int = 2560
     screen_h: int = 1456
+    enable_knowledge: bool = True         # 尝试加载 S16 知识库 · 失败静默降级
 
 
 class Analyzer:
@@ -53,6 +57,16 @@ class Analyzer:
         self.monitor = FrameMonitor(
             screen_size=(self.cfg.screen_w, self.cfg.screen_h),
         )
+        self.knowledge: Optional[S16Knowledge] = (
+            load_s16_knowledge() if self.cfg.enable_knowledge else None
+        )
+        if self.knowledge is not None:
+            log.info(
+                "S16 知识库已加载 · %d 套阵容 / %d 英雄 / %d 羁绊",
+                len(self.knowledge.comps),
+                len(self.knowledge.all_units),
+                len(self.knowledge.all_traits),
+            )
 
     async def analyze_frames(self, frame_bytes_iter: Iterable[bytes]) -> MatchReport:
         """Main entry · 吃一个帧序列（bytes 迭代器）· 吐一份 MatchReport。"""
@@ -98,11 +112,10 @@ class Analyzer:
     async def _llm_synthesize(self, states: List[WorldState]) -> MatchReport:
         """把状态序列交给 LLM · 生成评分和 narrative。
 
-        TODO · 未接入前返回 placeholder。接入方式：
-          - 每个 WorldState 序列化成简短 summary
-          - 拼成一个大的 prompt + 当前金铲铲版本知识库（RAG）
-          - 调 Claude API 或本地 vLLM 让它打分 + 写评语
-          - 解析成 RoundReview 列表
+        llm_mode="real" 时走本地 vLLM (LocalLLMAnalyzer) · "mock" 时返回骨架。
+        self.knowledge 实现了 KnowledgeProvider Protocol (version_context /
+        comps_table / validate_unit_name) · duck typing 传过去即可。None 时
+        LocalLLMAnalyzer 自行降级到通用 TFT 规则。
         """
         if not states:
             return MatchReport(
@@ -112,7 +125,19 @@ class Analyzer:
                 summary="空帧序列 · 无数据。",
             )
 
-        # --- placeholder · 未接入 LLM 时的骨架输出 ---
+        if self.cfg.llm_mode == "mock":
+            return self._mock_placeholder(states)
+
+        from .llm_analyzer import LocalLLMAnalyzer
+        llm = LocalLLMAnalyzer(
+            base_url=self.cfg.llm_base_url,
+            model=self.cfg.llm_model,
+            knowledge=self.knowledge,
+        )
+        return await llm.synthesize(states)
+
+    def _mock_placeholder(self, states: List[WorldState]) -> MatchReport:
+        """mock 模式骨架输出 · llm_mode='real' 时不会走到这里。"""
         first, last = states[0], states[-1]
         match_id = f"TFT-{int(time.time())}"
         return MatchReport(
@@ -126,13 +151,13 @@ class Analyzer:
                 RoundReview(
                     round=ws.round, grade="可",
                     title=f"{ws.stage} · 级 {ws.level} · 金 {ws.gold}",
-                    comment="（TODO · 接入 LLM 后填充真实点评）",
+                    comment="（mock 模式 · 未调 LLM · 接 --llm real 获取真实点评）",
                     delta=None,
                 ) for ws in states[::max(len(states) // 5, 1)][:5]
             ],
             summary=(
-                f"（骨架输出）识别到 {len(states)} 个关键帧 · "
+                f"（mock 骨架）识别到 {len(states)} 个关键帧 · "
                 f"最终 HP {last.hp} · 等级 {last.level}。"
-                " 接入 LLM 后此段将由 AI 生成带版本知识的叙事分析。"
+                " 切 --llm real 走本地 vLLM 生成带版本知识的叙事分析。"
             ),
         )

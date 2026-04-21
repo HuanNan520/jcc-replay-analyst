@@ -13,3 +13,12 @@ opencv-python>=4.9
 
 # 可选 · 如果直接从 mp4 录屏抽帧需要系统装 ffmpeg
 # 可选 · 接 VLM 本地推理需 vllm · 请按 https://docs.vllm.ai/ 单独安装
+
+# S16 版本知识库 · 来自本地 jcc-daida 项目（无 setup.py · 按文件路径加载）
+# 用法：设环境变量 JCC_DAIDA_PATH=/path/to/jcc-daida · 或保持默认让 src/knowledge.py
+# 走硬编码开发路径。未找到时 Analyzer 静默降级 · 不阻塞 pipeline。
+# jcc-daida 运行时依赖：
+pyyaml>=6.0
+
+# 测试
+pytest>=8.0
