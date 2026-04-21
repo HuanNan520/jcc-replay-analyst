@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml/badge.svg)](https://github.com/HuanNan520/jcc-replay-analyst/actions/workflows/ci.yml)
 
-🌐 **在线访问** · [pitch landing](https://huannan520.github.io/jcc-replay-analyst/) · [工程路线图](https://huannan520.github.io/jcc-replay-analyst/roadmap.html) · [真 LLM 样例复盘](https://huannan520.github.io/jcc-replay-analyst/sample_report.html)（首次需 repo Settings → Pages → Source 选 "GitHub Actions" · 然后 Actions 标签手动跑 Deploy Pages）
+🌐 **在线访问** · [pitch landing](https://huannan520.github.io/jcc-replay-analyst/) · [工程路线图](https://huannan520.github.io/jcc-replay-analyst/roadmap.html) · [构建日志](https://huannan520.github.io/jcc-replay-analyst/build_log.html) · [真 LLM 样例复盘](https://huannan520.github.io/jcc-replay-analyst/sample_report.html)（首次需 repo Settings → Pages → Source 选 "GitHub Actions" · 然后 Actions 标签手动跑 Deploy Pages）
 
 > 金铲铲之战 AI 教练 · **实时对局建议** + **自动赛后复盘** 双入口。
 

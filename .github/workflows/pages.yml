@@ -40,6 +40,7 @@ jobs:
           # pitch/index.html 作 landing · pitch/roadmap.html 作工程路线图
           cp pitch/index.html _site/index.html
           cp pitch/roadmap.html _site/roadmap.html
+          cp pitch/build_log.html _site/build_log.html
           # 示例 HTML 复盘报告
           cp examples/sample_report.html _site/sample_report.html
           # 简单 404 · 避免访问不存在路径崩溃

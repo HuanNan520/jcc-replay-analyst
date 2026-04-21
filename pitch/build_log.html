@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jcc-replay-analyst · 构建日志 · Build Log</title>
+<style>
+:root {
+  --bg:          #0b0912;
+  --bg-2:        #13111c;
+  --bg-3:        #1b1826;
+  --bg-4:        #232032;
+  --border:      #2a2538;
+  --border-soft: #1e1b2a;
+  --ink:   #e8e5d8;
+  --ink-2: #a39d8e;
+  --ink-3: #6b6458;
+  --ink-4: #43403a;
+  --gold:        #c9a45d;
+  --gold-bright: #e6c17a;
+  --gold-soft:   #8b7244;
+  --gold-dim:    rgba(201,164,93,.14);
+  --vermilion:        #b3432e;
+  --vermilion-bright: #d55a3f;
+  --celadon:      #5a8b7a;
+  --celadon-bright:#7fb09b;
+  --ochre:      #9c7a3c;
+  --serif-cn: "Songti SC","STSong","Source Han Serif SC","Noto Serif CJK SC","SimSun",serif;
+  --serif-en: "Baskerville","Libre Baskerville",Georgia,"Times New Roman",serif;
+  --sans:     "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --mono:     "SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body::before {
+  content:''; position: fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 1100px 700px at 15% 10%, rgba(201,164,93,.06), transparent 55%),
+    radial-gradient(ellipse 900px 600px at 88% 75%, rgba(179,67,46,.045), transparent 60%);
+}
+body::after {
+  content:''; position: fixed; inset:0; z-index:1; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.78 0 0 0 0 0.6 0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .5; mix-blend-mode: overlay;
+}
+main { position: relative; z-index: 2; max-width: 1100px; margin: 0 auto; padding: 56px 48px 96px; }
+@media (max-width: 820px) { main { padding: 40px 22px 72px; } }
+
+/* ==== masthead ==== */
+.masthead { margin-bottom: 40px; }
+.masthead .eyebrow {
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.masthead h1 {
+  font-family: var(--serif-cn);
+  font-size: 44px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.masthead h1 .code {
+  font-family: var(--mono);
+  font-size: 26px;
+  color: var(--gold);
+}
+.masthead .sub {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.masthead .divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-soft) 0%, transparent 60%);
+  margin-top: 22px;
+}
+
+/* ==== hero stats ==== */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 44px;
+}
+@media (max-width: 820px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+.hero-stats > div {
+  background: var(--bg-2);
+  padding: 18px 20px;
+}
+.hero-stats .k {
+  font-family: var(--serif-en);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.hero-stats .v {
+  font-family: var(--serif-cn);
+  font-size: 30px;
+  color: var(--gold-bright);
+  line-height: 1;
+  font-weight: 400;
+}
+.hero-stats .v .u {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+/* ==== TLDR card ==== */
+.tldr {
+  background: linear-gradient(140deg, var(--bg-2), var(--bg-3));
+  border: 1px solid var(--border);
+  padding: 28px 32px;
+  margin-bottom: 48px;
+  position: relative;
+}
+.tldr::before {
+  content:''; position:absolute; top:0; left:0;
+  width:72px; height:1px; background: var(--gold-bright);
+}
+.tldr p {
+  font-family: var(--serif-cn);
+  font-size: 17px;
+  line-height: 1.95;
+  color: var(--ink);
+}
+.tldr p strong { color: var(--gold-bright); font-weight: 500; }
+.tldr p em { color: var(--celadon-bright); font-style: normal; }
+.tldr p code {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--gold);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+/* ==== section ==== */
+section { margin-bottom: 52px; }
+.section-head {
+  display: flex; align-items: baseline; gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-head .seal {
+  font-family: var(--serif-cn);
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+}
+.section-head .tag {
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.section-head .hint {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ==== timeline ==== */
+.timeline {
+  position: relative;
+  padding-left: 22px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 8px; bottom: 8px; left: 6px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--border) 100%);
+}
+.entry {
+  position: relative;
+  margin-bottom: 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  padding: 16px 22px 18px;
+}
+.entry::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 22px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--gold-soft);
+}
+.entry.feat { border-left-color: var(--gold); }
+.entry.feat::before { border-color: var(--gold-bright); background: var(--gold-dim); }
+.entry.docs { border-left-color: var(--celadon); }
+.entry.docs::before { border-color: var(--celadon); }
+.entry.refactor { border-left-color: var(--ochre); }
+.entry.refactor::before { border-color: var(--ochre); }
+.entry.ci { border-left-color: var(--vermilion); }
+.entry.ci::before { border-color: var(--vermilion); }
+.entry.chore { border-left-color: var(--gold-soft); }
+.entry.chore::before { border-color: var(--gold-soft); }
+
+.entry-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.entry .hash {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--gold-soft);
+  letter-spacing: 0.04em;
+  background: var(--bg);
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+.entry .type {
+  font-family: var(--serif-en);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 2px;
+}
+.entry.feat .type { color: var(--gold-bright); border-color: var(--gold-soft); }
+.entry.docs .type { color: var(--celadon-bright); border-color: var(--celadon); }
+.entry.refactor .type { color: var(--ochre); border-color: var(--ochre); }
+.entry.ci .type { color: var(--vermilion-bright); border-color: var(--vermilion); }
+.entry.chore .type { color: var(--ink-2); border-color: var(--gold-soft); }
+.entry .time {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-left: auto;
+}
+
+.entry h3 {
+  font-family: var(--serif-cn);
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.entry .desc {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+
+.entry .bullets {
+  list-style: none;
+  margin-top: 6px;
+}
+.entry .bullets li {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.75;
+}
+.entry .bullets li::before {
+  content: '·';
+  color: var(--gold);
+  position: absolute;
+  left: 2px;
+  font-size: 16px;
+  line-height: 1;
+}
+.entry .bullets li code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--gold);
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* ==== phase badge ==== */
+.phase-badge {
+  display: inline-block;
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  border: 1px solid var(--gold-soft);
+  padding: 2px 8px;
+  border-radius: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ==== footer ==== */
+footer {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+footer a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gold-soft);
+}
+footer a:hover { color: var(--gold-bright); }
+</style>
+</head>
+<body>
+
+<main>
+
+  <header class="masthead">
+    <div class="eyebrow">BUILD LOG · 构建日志 · 2026-04-21 → 2026-04-22</div>
+    <h1><span class="code">jcc-replay-analyst</span> · 从骨架到 AI 教练</h1>
+    <div class="sub">
+      HuanNan520/jcc-replay-analyst · main @ b226fc8 · 单次连续开发会话 · Claude Opus 4.7 协作
+    </div>
+    <div class="divider"></div>
+  </header>
+
+  <!-- hero stats -->
+  <div class="hero-stats">
+    <div>
+      <div class="k">Commits</div>
+      <div class="v">22</div>
+    </div>
+    <div>
+      <div class="k">Duration</div>
+      <div class="v">≈5<span class="u">h</span></div>
+    </div>
+    <div>
+      <div class="k">LOC</div>
+      <div class="v">8226</div>
+    </div>
+    <div>
+      <div class="k">Tests</div>
+      <div class="v">198</div>
+    </div>
+    <div>
+      <div class="k">Pages</div>
+      <div class="v">4</div>
+    </div>
+  </div>
+
+  <!-- TLDR -->
+  <div class="tldr">
+    <p>
+      起始是一份<strong>"录屏复盘工具"</strong>初版骨架 · <em>LLM 分析层还是 placeholder</em>。
+      一次连续开发会话里 · 项目 <strong>pivot 到"实时 AI 教练 + 自动赛后复盘"双入口</strong> ·
+      完成感知层 · 本地 vLLM 推理层 · S17 知识库 RAG · 实时 tick loop ·
+      WebSocket 广播 · PyQt 桌面 overlay · 复盘 HTML 渲染器 · Windows 一键启动 ·
+      <code>scripts/e2e_smoke.py</code> 端到端 50s WSL 自跑通 · <code>pitch/index.html</code>
+      翻新为产品 landing · <code>pitch/roadmap.html</code> 工程路线图 · <em>4 阶段 · 22 commit · 198 pytest 零回归 · CI 连绿</em>。
+    </p>
+  </div>
+
+  <!-- 阶段 A · MVP -->
+  <section>
+    <div class="section-head">
+      <div class="seal">一 · 阶段 A · 复盘 MVP</div>
+      <div class="tag">Phase A · recording replay analyzer</div>
+      <div class="hint">23:44 → 01:23 · 3 commits</div>
+    </div>
+    <div class="timeline">
+
+      <div class="entry chore">
+        <div class="entry-header">
+          <span class="hash">465d302</span>
+          <span class="type">initial</span>
+          <span class="time">2026-04-21 23:44</span>
+        </div>
+        <h3>initial commit · pipeline skeleton + pitch demo</h3>
+        <div class="desc">仓库起点。感知层骨架 + 手写 mock 复盘报告 + 视觉 pitch。LLM 分析层留 TODO。</div>
+      </div>
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">60fd039</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 01:18</span>
+        </div>
+        <h3>wire local LLM pipeline end-to-end <span class="phase-badge">A1–A4</span></h3>
+        <ul class="bullets">
+          <li><b>A1</b> · <code>src/llm_analyzer.py</code> · vLLM + Qwen3-VL guided_json · 真 LLM 替代 placeholder</li>
+          <li><b>A2</b> · 12 张真实 S16 帧放到 <code>examples/sample_frames/</code></li>
+          <li><b>A3</b> · <code>src/knowledge.py</code> 接 jcc-daida · S16 113 英雄 / 53 羁绊 / 10 梯队阵容</li>
+          <li><b>A4</b> · <code>tests/</code> × 40 passing · <code>.github/workflows/ci.yml</code></li>
+        </ul>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">36475b7</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 01:23</span>
+        </div>
+        <h3>soften local-only wording · support cloud as opt-in</h3>
+        <div class="desc">
+          默认本地推理 · 但架构不锁死 —— fork 换云 API 只需另写 <code>CloudLLMAnalyzer</code> 实现。
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 阶段 B · 实时 coach -->
+  <section>
+    <div class="section-head">
+      <div class="seal">二 · 阶段 B · 实时 coach 全链路</div>
+      <div class="tag">Phase B · live AI coach pipeline</div>
+      <div class="hint">02:02 → 02:16 · 3 commits · 7 子任务</div>
+    </div>
+    <div class="timeline">
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">ae97e2c</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 02:02</span>
+        </div>
+        <h3>B1/B3/B4 · 数据源 + 决策 LLM + WS 广播 + S17 知识适配 <span class="phase-badge">B1·B3·B4</span></h3>
+        <ul class="bullets">
+          <li><b>B1</b> · <code>src/capture_obs.py</code> · OBS 虚拟摄像头替代 ADB · 腾讯反外挂感知不到这层</li>
+          <li><b>B3</b> · <code>src/decision_llm.py</code> · 6 类短 prompt · guided_json · 目标 ≤3s</li>
+          <li><b>B4</b> · <code>src/advice_server.py</code> · FastAPI + WebSocket + history buffer</li>
+          <li><b>S17 knowledge</b> · 升级为 S17 默认 · 73 英雄 · 按 lolchess top4_rate 排序</li>
+        </ul>
+      </div>
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">755bded</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 02:08</span>
+        </div>
+        <h3>B2 + B5 · 实时 tick loop + PyQt overlay <span class="phase-badge">B2·B5</span></h3>
+        <ul class="bullets">
+          <li><b>B2</b> · <code>src/live_tick.py</code> · 中央枢纽 · 感知→决策→广播 · 对局结束归集复盘</li>
+          <li><b>B5</b> · <code>src/overlay_ui.py</code> · PyQt6 无边框 + 透明背景 + Win32 FindWindow 跟随 MuMu</li>
+          <li>实时 coach 双入口产品闭环完成</li>
+        </ul>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">866ffe3</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 02:16</span>
+        </div>
+        <h3>add pitch/roadmap.html · 工程路线图可视化</h3>
+        <div class="desc">A/B/C 三阶段进度 · 深色金色风格 · 延续 pitch/index.html 视觉语言。</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 阶段 C · 打磨 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">三 · 阶段 C · 打磨与作品集化</div>
+      <div class="tag">Phase C · polish & portfolio-ready</div>
+      <div class="hint">02:27 → 03:17 · 7 commits · 8 子任务</div>
+    </div>
+    <div class="timeline">
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">7db0e0c</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 02:27</span>
+        </div>
+        <h3>C1 + C4 · Hallucinate audit + 复盘 HTML 渲染器 <span class="phase-badge">C1·C4</span></h3>
+        <ul class="bullets">
+          <li><b>C1</b> · <code>_scan_text_for_unknown_names</code> tokenization 滑动窗口 + 白名单 + 上下文触发词</li>
+          <li><b>C4</b> · <code>src/report_renderer.py</code> + <code>scripts/demo_report.py</code> + <code>examples/sample_report.html</code></li>
+          <li><code>_save_report</code> 从只落 md/json 升级为 md/json/html 三件套</li>
+          <li>替换原手写 mock · 真 LLM 产出成为仓库门面</li>
+        </ul>
+      </div>
+
+      <div class="entry refactor">
+        <div class="entry-header">
+          <span class="hash">e360322</span>
+          <span class="type">refactor</span>
+          <span class="time">2026-04-22 02:32</span>
+        </div>
+        <h3>C1 hallucinate audit · 扩白名单 + 收紧滑动窗口</h3>
+        <div class="desc">
+          修 agent 自己发现的"经济之神后立"类误报 —— 白名单补 45+ 条中文动作/叙述短语 ·
+          片段不允许以触发词起始或结尾。自迭代 · 展示工程敏感度。
+        </div>
+      </div>
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">3c1511c</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 02:38</span>
+        </div>
+        <h3>C9 + C10 · README 架构图翻新 + e2e smoke demo <span class="phase-badge">C9·C10</span></h3>
+        <ul class="bullets">
+          <li><b>C9</b> · README 技术架构段 · 老单路径 → 双路径（OBS 实时 / mp4 复盘共享感知层）</li>
+          <li><b>C10</b> · <code>scripts/e2e_smoke.py</code> · 不依赖 Windows · 50s 跑通全链路 · 产出 18KB HTML 复盘</li>
+          <li>作品集有了可一键验证 pipeline 连通的 demo 脚本</li>
+        </ul>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">2a00d38</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 02:50</span>
+        </div>
+        <h3>C11 · pitch/index.html 翻新为 AI 教练双入口 landing <span class="phase-badge">C11</span></h3>
+        <ul class="bullets">
+          <li>从"录屏复盘"过时定位 → "实时 coach + 赛后复盘"</li>
+          <li>1956 行旧 JS 动画版 → 1451 行纯 HTML+CSS+SVG</li>
+          <li>6 卷新结构 · Hero / 双入口对比 / 技术架构 SVG / 工程数据 / 合规 stack / 启动方式</li>
+          <li>视觉语言全保留（深紫 + 金 + 朱砂 + 青瓷 + 赭石 + 宋体 + Baskerville）</li>
+        </ul>
+      </div>
+
+      <div class="entry ci">
+        <div class="entry-header">
+          <span class="hash">c03b583</span>
+          <span class="type">ci</span>
+          <span class="time">2026-04-22 02:55</span>
+        </div>
+        <h3>GitHub Pages workflow · 部署 pitch + roadmap + sample_report</h3>
+        <div class="desc">
+          <code>.github/workflows/pages.yml</code> · 加深色风格 404 · 目标 URL <code>huannan520.github.io/jcc-replay-analyst/</code>。
+        </div>
+      </div>
+
+      <div class="entry ci">
+        <div class="entry-header">
+          <span class="hash">d557edf</span>
+          <span class="type">ci</span>
+          <span class="time">2026-04-22 03:00</span>
+        </div>
+        <h3>pages workflow 改手动触发 · README 加 live 链接</h3>
+        <div class="desc">
+          避免未启用 Pages 时每次 push 都红 · 顶部加在线访问入口 + 启用指引。
+        </div>
+      </div>
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">b8ec6bf</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 03:10</span>
+        </div>
+        <h3>C12 + C13 · positioning fix + 环境自检脚本 <span class="phase-badge">C12·C13</span></h3>
+        <ul class="bullets">
+          <li><b>C12</b> · <code>PositioningAdvice</code> 加 <code>@field_validator</code> coerce · 修 row/col 字段 decode error</li>
+          <li>LLM 输出 "3" 字符串 / "后排" 中文 / 越界数字 → clamp 到合法范围 · 不再走 fallback</li>
+          <li><b>C13</b> · <code>scripts/setup_check.py</code> · 19 项环境自检 · 彩色输出 · exit code 区分 warn/fail</li>
+        </ul>
+      </div>
+
+      <div class="entry feat">
+        <div class="entry-header">
+          <span class="hash">c413341</span>
+          <span class="type">feat</span>
+          <span class="time">2026-04-22 03:17</span>
+        </div>
+        <h3>C14 · Windows 一键启动脚本 <span class="phase-badge">C14</span></h3>
+        <ul class="bullets">
+          <li><code>scripts/start_coach.ps1</code> 233 行 · 4 步开新 PS 窗口起全链路</li>
+          <li>前置检查 Python / OBS Studio / 仓库目录 · CLI 参数 <code>-SkipVLLM</code> / <code>-ModelPath</code> / <code>-Help</code></li>
+          <li>每步起来轮询验活 · <code>scripts/start_coach.bat</code> 简短转发 .ps1</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 收尾同步 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">四 · 收尾 · 文档同步</div>
+      <div class="tag">Docs harmonization</div>
+      <div class="hint">03:22 → 04:24 · 7 commits</div>
+    </div>
+    <div class="timeline">
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">91baddb</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 03:22</span>
+        </div>
+        <h3>README 项目状态段 · B 路线全绿 + C 摘要</h3>
+        <div class="desc">B1-B5 从 🚧 改 ✅ · 加 C 阶段 8 项子任务列表 · S17 实际数据校正。</div>
+      </div>
+
+      <div class="entry chore">
+        <div class="entry-header">
+          <span class="hash">efc2686</span>
+          <span class="type">chore</span>
+          <span class="time">2026-04-22 03:27</span>
+        </div>
+        <h3>reports/ 目录标准化 · gitkeep + 说明 + gitignore 规则</h3>
+        <div class="desc">clone 后 live_tick 不会因缺目录 crash · 实际报告文件不入库。</div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">db9159a</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 03:38</span>
+        </div>
+        <h3>pitch/roadmap.html C 阶段 planned → done</h3>
+        <div class="desc">Hero stat "阶段 B" 改 "三阶段" · C 卡片 8 项完成列表。</div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">b89c762</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 03:48</span>
+        </div>
+        <h3>tasks/README.md 同步 B/C 完成状态</h3>
+        <div class="desc">所有 B1-B5 ✅ · C 阶段 8 项清单入表。</div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">6e29f05</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 03:53</span>
+        </div>
+        <h3>src/analyzer.py docstring 更新</h3>
+        <div class="desc">模块文档从"骨架 + TODO"升级为"pipeline 编排 · 三层都已接真实实现"。</div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">5827e04</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 04:14</span>
+        </div>
+        <h3>src/__init__.py 同步新产品定位 · 13 模块分层</h3>
+        <div class="desc">
+          从"金铲铲对局 AI 复盘分析" → "AI 教练 · 实时 + 复盘双入口"。
+          分层列全 13 个模块 · 感知/数据源/RAG/决策+推理/交付。
+        </div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">b25d07c</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 04:19</span>
+        </div>
+        <h3>README 示例报告段 · HTML 置顶 · 标 .md 为老 mock</h3>
+        <div class="desc">真 LLM 产出优先于手写 mock · 让评估者第一眼看到真产出。</div>
+      </div>
+
+      <div class="entry docs">
+        <div class="entry-header">
+          <span class="hash">b226fc8</span>
+          <span class="type">docs</span>
+          <span class="time">2026-04-22 04:24</span>
+        </div>
+        <h3>加 CHANGELOG.md · 21 commit 时间线</h3>
+        <div class="desc">按时间倒序整理 · 数据截面 8226 LOC · 198 pytest · 3-5s 决策延迟。</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 关键成果 -->
+  <section>
+    <div class="section-head">
+      <div class="seal">五 · 关键成果 · 交付物</div>
+      <div class="tag">Artifacts</div>
+    </div>
+    <div class="tldr">
+      <p>
+        可直接访问的产物：<strong>主 README</strong>（含 live badge）·
+        <code>pitch/index.html</code>（AI 教练 landing · 1451 行）·
+        <code>pitch/roadmap.html</code>（工程路线图）·
+        <code>pitch/build_log.html</code>（本页）·
+        <code>examples/sample_report.html</code>（真 LLM 复盘产出 · 17 KB）·
+        <code>scripts/e2e_smoke.py</code>（WSL 50s 跑通）·
+        <code>scripts/start_coach.bat</code>（Windows 一键）·
+        <code>scripts/setup_check.py</code>（19 项自检）·
+        <code>CHANGELOG.md</code>。
+        CI <em>22 连绿</em> · 198 pytest 零回归 · <em>作品集可分享</em>。
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>
+      生成 · 2026-04-22 · by Claude Opus 4.7 · 连续开发会话
+    </span>
+    <span>
+      <a href="https://github.com/HuanNan520/jcc-replay-analyst">Repo</a> ·
+      <a href="./index.html">Pitch</a> ·
+      <a href="./roadmap.html">Roadmap</a> ·
+      <a href="../examples/sample_report.html">Sample Report</a> ·
+      <a href="../CHANGELOG.md">CHANGELOG.md</a>
+    </span>
+  </footer>
+
+</main>
+</body>
+</html>
