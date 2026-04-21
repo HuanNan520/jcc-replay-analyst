@@ -1,0 +1,60 @@
+name: Deploy Pages
+
+# 自动把 pitch/ + examples/ 里的 HTML 部署到 GitHub Pages
+# 启用：repo Settings → Pages → Build and deployment source 选 "GitHub Actions"
+# 启用后 URL: https://huannan520.github.io/jcc-replay-analyst/
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build _site
+        run: |
+          mkdir -p _site
+          # pitch/index.html 作 landing · pitch/roadmap.html 作工程路线图
+          cp pitch/index.html _site/index.html
+          cp pitch/roadmap.html _site/roadmap.html
+          # 示例 HTML 复盘报告
+          cp examples/sample_report.html _site/sample_report.html
+          # 简单 404 · 避免访问不存在路径崩溃
+          cat > _site/404.html <<'HTML'
+          <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+          <title>404 · jcc-replay-analyst</title>
+          <style>body{background:#0b0912;color:#e8e5d8;font-family:Songti SC,serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}
+          a{color:#c9a45d;text-decoration:none;border-bottom:1px dotted #8b7244}
+          a:hover{color:#e6c17a}</style></head>
+          <body><div><h1 style="font-size:64px;font-weight:400;color:#c9a45d">四〇四</h1>
+          <p>这页没有 · 回 <a href="./">首页</a> · 或 <a href="./roadmap.html">路线图</a> · 或 <a href="./sample_report.html">样例报告</a></p></div></body></html>
+          HTML
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
