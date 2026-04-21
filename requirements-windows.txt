@@ -5,3 +5,8 @@
 -r requirements.txt
 pygrabber>=0.2.0     ; sys_platform == "win32"
 # opencv-python 已在主 requirements · 这里只加 Windows 特有的
+
+# B5 · PyQt overlay（半透明卡片浮在 MuMu 窗口上方）
+# PyQt6 在 Linux headless CI 装得慢 · 故不放主 requirements
+PyQt6>=6.7
+websockets>=12.0

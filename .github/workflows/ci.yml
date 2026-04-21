@@ -18,6 +18,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # CI 只装测试需要的轻量依赖 · 跳过 paddleocr / opencv / vllm（太重 · 本批不测）
-          pip install pydantic httpx pillow numpy pytest
+          # PyQt6 是 Windows-only UI · CI 不装 · test_overlay_headless.py 靠 importorskip 自动 skip
+          pip install pydantic httpx pillow numpy pytest fastapi uvicorn websockets
       - name: Run tests
-        run: pytest tests/test_schema.py tests/test_frame_monitor.py -v
+        run: pytest tests/test_schema.py tests/test_frame_monitor.py tests/test_advice_server.py tests/test_overlay_headless.py -v

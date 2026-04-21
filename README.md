@@ -126,7 +126,25 @@ python scripts/analyze.py \
 4. `pip install -r requirements-windows.txt`
 5. `python scripts/test_obs_capture.py` 验证接入
 
-更详细的实时 coach 启动流程见后续 B2/B5 任务完成后的 README 更新。
+### 实时 coach 模式 · 完整启动（4 个终端 · B2 完成后）
+
+```powershell
+# 终端 1 · WSL · 启 vLLM（感知 + 分析 + 决策共用）
+source ~/jcc-replay-analyst/.venv/bin/activate
+python -m vllm.entrypoints.openai.api_server --model /path/to/Qwen3-VL-4B-FP8 --port 8000
+
+# 终端 2 · Windows 或 WSL · 启 advice 广播服务
+python -m src.advice_server --port 8765
+
+# 终端 3 · Windows 原生 Python · 起 OBS virtual cam + live tick（前置 OBS Start Virtual Camera）
+python -m src.live_tick --fps 2 --advice-server http://localhost:8765
+
+# 终端 4 · Windows 原生 Python · 起 overlay（半透明卡片浮在 MuMu 窗口上方）
+python -m src.overlay_ui --ws-url ws://localhost:8765/ws/advice
+```
+
+overlay 会自动找 MuMu 主窗口并贴边 · 决策点触发就淡入卡片 · 8 秒后淡出。
+开发调试时用 `--no-click-through` 可以点到 overlay 本身。
 
 ## 项目状态
 
