@@ -12,6 +12,11 @@ on:
   # push:
   #   branches: [main]
 
+# opt-in Node 24 · 消 checkout@v4 / configure-pages@v5 / deploy-pages@v4 / upload-pages-artifact@v3 的 Node 20 deprecation warning
+# GitHub 2026-06-02 起默认 Node 24 · 2026-09-16 移除 Node 20
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: read
   pages: write
