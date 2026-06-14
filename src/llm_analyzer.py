@@ -1,18 +1,23 @@
-"""本地 LLM 分析层 —— 把 WorldState 序列合成一份 MatchReport。
+"""Local LLM analysis layer — synthesize a WorldState sequence into one MatchReport.
 
-默认路线（非硬约束 · fork 换云自行扩展）：
-  - 走本地 vLLM OpenAI 兼容接口（默认 http://localhost:8000/v1）· 自建零成本
-  - 不内置 anthropic / openai 等云 SDK 依赖 · 仅 httpx · 要换云自己加一个实现
-  - 结构化输出优先用 vLLM guided_json · 降级到 response_format json_object
-  - vLLM 内建 automatic prefix caching · system prompt 复用 KV cache · 不需要 client 端
-    cache_control（那是 Anthropic 特有）
+Default path (not a hard constraint · extend it yourself when you fork to the cloud):
+  - Runs on a local vLLM OpenAI-compatible interface (default http://localhost:8000/v1) · zero cost to self-host
+  - No built-in cloud SDK dependency (anthropic / openai) · httpx only · add your own implementation to switch to the cloud
+  - Structured output prefers vLLM guided_json · falls back to response_format json_object
+  - vLLM has built-in automatic prefix caching · the system prompt reuses the KV cache · no client-side
+    cache_control needed (that is Anthropic-specific)
 
-用法：
+Usage:
     from src.llm_analyzer import LocalLLMAnalyzer
     llm = LocalLLMAnalyzer(base_url="http://localhost:8000/v1",
                            model="Qwen3-VL-8B-FP8",
                            knowledge=s16_knowledge)
     report = await llm.synthesize(states)
+
+NOTE: the Chinese prompt strings (SYSTEM_HEADER / SCHEMA_DESCRIPTION / _GENERIC_KNOWLEDGE_NOTE),
+the _WHITELIST_TERMS / _CONTEXT_TRIGGERS sets, the CJK regexes, and the Chinese fallback
+report content are all kept Chinese on purpose — the first feed the LLM, the rest match or
+generate Chinese text.
 """
 from __future__ import annotations
 
@@ -30,9 +35,9 @@ log = logging.getLogger(__name__)
 
 
 class KnowledgeProvider(Protocol):
-    """A3 会实现 · 本任务只用 Protocol · 可 None。
+    """Only the Protocol is used here · may be None.
 
-    src.knowledge.S16Knowledge 已经 duck-typing 兼容 · 直接传即可。
+    src.knowledge.S16Knowledge is already duck-typing compatible · pass it directly.
     """
     def version_context(self) -> str: ...
     def comps_table(self) -> str: ...
@@ -70,9 +75,10 @@ SCHEMA_DESCRIPTION = """## 输出 schema
 """
 
 
-# 白名单：常见 TFT/金铲铲通用术语，不当英雄名对待
+# Whitelist: common generic TFT terms · NOT to be treated as champion names.
+# All entries are matched against Chinese report text · they must stay Chinese.
 _WHITELIST_TERMS: set[str] = {
-    # TFT 核心术语
+    # Core TFT terms
     "阵容", "羁绊", "装备", "海克斯", "主C", "副C", "经济", "连胜", "连败",
     "强化", "增强", "转型", "D牌", "过渡", "节奏", "卡位", "满级", "刷新",
     "前期", "中期", "后期", "开局", "收尾", "大病", "连损", "血线", "优势",
@@ -80,7 +86,7 @@ _WHITELIST_TERMS: set[str] = {
     "小兵", "对战", "摆位", "棋盘", "备战", "候补", "三星", "二星", "一星",
     "最终", "结算", "赛季", "版本", "强势", "弱势", "主流", "冷门", "特色",
     "大后期", "小后期", "极限",
-    # 常见中文短语（普通动作/叙述）· 防止被误判为专有名词
+    # Common Chinese phrases (ordinary actions/narration) · prevent false positives as proper nouns
     "本局", "这局", "此局", "全局", "整局",
     "若能", "若有", "如果", "假如", "否则",
     "成功", "失败", "推进", "进攻", "防守",
@@ -96,38 +102,39 @@ _WHITELIST_TERMS: set[str] = {
     "提升", "降低", "增加", "减少", "改变",
 }
 
-# 上下文提示词：前后有这些词时，中间片段更可能是专有名词（英雄/装备名）
+# Context cues: when these words sit on either side, the fragment between is more likely a
+# proper noun (champion/item name). Matched against Chinese text · kept Chinese.
 _CONTEXT_TRIGGERS: set[str] = {
     "选", "到", "用", "合", "买", "卖", "推", "打",
     "升", "出", "拿", "换", "带", "配", "开", "组",
     "《", "【", "「", "（", "‘", "“",
 }
 
-# 中文连续片段提取正则
+# Regex to extract contiguous Chinese fragments
 _CJK_BLOCK_RE = re.compile(r"[一-鿿]+")
-# 英雄名样式：纯中文 2-6 字
+# Champion-name pattern: 2-6 pure Chinese characters
 _HERO_NAME_RE = re.compile(r"^[一-鿿]{2,6}$")
 
 
 def _extract_candidate_names(text: str) -> list[str]:
-    """从文本中提取 2-6 字中文片段候选（上下文提示词触发版）。
+    """Extract 2-6 character Chinese fragment candidates from text (context-cue-triggered version).
 
-    策略：
-    - 遍历每个连续中文块，对 2-6 字滑动窗口内的片段做检测
-    - 片段本身不能以触发词起始或结尾（触发词应在片段外部邻接）
-    - 片段邻接字符中有触发词才收集
+    Strategy:
+    - Walk each contiguous Chinese block, testing fragments within a 2-6 char sliding window
+    - The fragment itself must not start or end with a trigger word (the trigger should be adjacent, outside the fragment)
+    - Only collect a fragment if a trigger word is adjacent to it
     """
     candidates: list[str] = []
     for block_match in _CJK_BLOCK_RE.finditer(text):
         block = block_match.group()
         block_start = block_match.start()
         blen = len(block)
-        for size in range(2, 7):           # 2-6 字窗口
+        for size in range(2, 7):           # 2-6 char window
             for offset in range(blen - size + 1):
                 frag = block[offset: offset + size]
                 if not _HERO_NAME_RE.match(frag):
                     continue
-                # 片段不应以触发词起始或结尾（触发词是名称的上下文，不是名称本身）
+                # The fragment should not start or end with a trigger word (the trigger is the name's context, not the name itself)
                 if frag[0] in _CONTEXT_TRIGGERS or frag[-1] in _CONTEXT_TRIGGERS:
                     continue
                 abs_start = block_start + offset
@@ -175,8 +182,8 @@ class LocalLLMAnalyzer:
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
-        # 方案 1 · vLLM guided_json · 最稳 · 采样层强制 JSON schema
-        # 方案 2（降级）· response_format json_object · 只保证合法 JSON
+        # Option 1 · vLLM guided_json · most reliable · forces the JSON schema at the sampling layer
+        # Option 2 (fallback) · response_format json_object · only guarantees valid JSON
         attempts = []
         if self.use_guided_json:
             attempts.append(("guided_json",
@@ -208,11 +215,11 @@ class LocalLLMAnalyzer:
                 except Exception as e:
                     dt = time.time() - t0
                     last_err = e
-                    log.warning("LLM 调用失败 · mode=%s · %.1fs · err=%s", mode, dt, e)
+                    log.warning("LLM call failed · mode=%s · %.1fs · err=%s", mode, dt, e)
                     continue
 
         if body is None:
-            log.error("LLM 所有模式均失败 · 最后错误 %s · 降级空报告", last_err)
+            log.error("LLM failed in every mode · last error %s · degrading to empty report", last_err)
             return _empty_report(states)
 
         raw = body["choices"][0]["message"]["content"]
@@ -229,7 +236,7 @@ class LocalLLMAnalyzer:
         try:
             data = json.loads(raw_clean)
         except json.JSONDecodeError as e:
-            log.warning("LLM 非法 JSON · 降级 mock · err=%s · head=%r", e, raw_clean[:200])
+            log.warning("LLM returned invalid JSON · degrading to mock · err=%s · head=%r", e, raw_clean[:200])
             return _empty_report(states)
 
         report = _coerce_match_report(data, states)
@@ -238,17 +245,18 @@ class LocalLLMAnalyzer:
             warnings = self._scan_text_for_unknown_names_in_report(report)
             if warnings:
                 self.last_audit_warnings = warnings
-                log.warning("LLM 全文扫描可疑专有名词 · %s", warnings)
+                log.warning("full-text scan flagged suspicious proper nouns · %s", warnings)
         return report
 
     def _build_system_prompt(self) -> str:
         parts = [SYSTEM_HEADER]
         if self.knowledge is not None:
             try:
+                # Chinese prompt section headers fed to the LLM — kept Chinese.
                 parts.append("## S16 版本知识\n" + self.knowledge.version_context())
                 parts.append("## 强势阵容表\n" + self.knowledge.comps_table())
             except Exception as e:
-                log.warning("knowledge provider 调用失败 · 降级通用 · %s", e)
+                log.warning("knowledge provider call failed · degrading to generic · %s", e)
                 parts.append(_GENERIC_KNOWLEDGE_NOTE)
         else:
             parts.append(_GENERIC_KNOWLEDGE_NOTE)
@@ -256,8 +264,10 @@ class LocalLLMAnalyzer:
         return "\n\n".join(parts)
 
     def _compact_states(self, states: List[WorldState]) -> str:
+        # The header and sparse-signal note built below are part of the Chinese user prompt
+        # fed to the LLM · kept Chinese.
         lines = []
-        signal_strength = 0  # 非零字段计数 · 用来提示 LLM 输入是否稀疏
+        signal_strength = 0  # count of non-zero fields · used to hint the LLM whether the input is sparse
         for i, ws in enumerate(states):
             board = ",".join(f"{u.name}★{u.star}" for u in ws.board[:8])
             traits = ",".join(f"{t.name}×{t.count}" for t in ws.active_traits[:4])
@@ -284,13 +294,13 @@ class LocalLLMAnalyzer:
         return header + "\n".join(lines)
 
     def _scan_text_for_unknown_names(self, text: str, knowledge) -> list[str]:
-        """tokenization 级别全文扫描 · 检测未知专有名词（不依赖引号）。
+        """Tokenization-level full-text scan · detect unknown proper nouns (no reliance on quotes).
 
-        策略：
-        1. 维护 known = all_units | all_traits | all_items | all_augments
-        2. 用滑动窗口提取 2-6 字中文连续片段（仅上下文触发词邻接的片段）
-        3. 片段不在 known + 不在白名单 + 不是任何 known 词的子串 → 可疑候选
-        4. 去重后，仅保留不被其他可疑候选包含的最长形式（减少重复碎片噪声）
+        Strategy:
+        1. Maintain known = all_units | all_traits | all_items | all_augments
+        2. Extract 2-6 char contiguous Chinese fragments with a sliding window (only fragments adjacent to a context cue)
+        3. Fragment not in known + not in the whitelist + not a substring of any known word -> suspicious candidate
+        4. After dedup, keep only the longest form not contained in another suspicious candidate (reduces repeated-fragment noise)
         """
         known: set[str] = set()
         for attr in ("all_units", "all_traits", "all_items", "all_augments"):
@@ -307,11 +317,11 @@ class LocalLLMAnalyzer:
             seen.add(candidate)
             if candidate in whitelist_all:
                 continue
-            # 过滤：片段是某个已知词/白名单词的子串（防止已知词局部碎片误报）
+            # Filter: fragment is a substring of some known/whitelist word (avoids false positives from a known word's partial fragment)
             if any(candidate in kw for kw in whitelist_all):
                 continue
-            # 过滤：片段完全由某个已知词/白名单词 + 紧接后缀构成（如"弗雷尔卓德羁"）
-            # 判据：片段以某个 ≥2 字的已知词开头 或 结尾，且已知词占片段长度 >50%
+            # Filter: fragment is entirely a known/whitelist word + an immediate suffix (e.g. "弗雷尔卓德羁")
+            # Criterion: the fragment starts or ends with a known word of >=2 chars, and that known word is >50% of the fragment's length
             skip = False
             for kw in whitelist_all:
                 if len(kw) < 2:
@@ -323,7 +333,7 @@ class LocalLLMAnalyzer:
                 continue
             raw_candidates.append(candidate)
 
-        # 仅保留不被其他候选包含的最长形式（去掉噪声子串）
+        # Keep only the longest form not contained in another candidate (drop noise substrings)
         suspicious: list[str] = [
             c for c in raw_candidates
             if not any(c != other and c in other for other in raw_candidates)
@@ -331,7 +341,7 @@ class LocalLLMAnalyzer:
         return suspicious
 
     def _scan_text_for_unknown_names_in_report(self, report: MatchReport) -> list[str]:
-        """对 report 的 summary / key_round.comment / core_comp 做全文扫描。"""
+        """Full-text scan over the report's summary / key_round.comment / core_comp."""
         if self.knowledge is None:
             return []
         texts: list[str] = []
@@ -346,7 +356,7 @@ class LocalLLMAnalyzer:
         return self._scan_text_for_unknown_names(combined, self.knowledge)
 
     def _audit_hallucinations(self, report: MatchReport) -> None:
-        """对 LLM 提到的英雄名跑 knowledge 校验 · 仅 log warn · 不改文本。"""
+        """Validate the champion names the LLM mentions against knowledge · log a warning only · do not edit the text."""
         suspicious: set[str] = set()
         pattern = re.compile(r'"([一-鿿]{2,6})"')
         texts: list[str] = []
@@ -365,7 +375,7 @@ class LocalLLMAnalyzer:
                 except Exception:
                     pass
         if suspicious:
-            log.warning("LLM hallucinate 可疑英雄名 · %s", sorted(suspicious))
+            log.warning("LLM possibly hallucinated champion names · %s", sorted(suspicious))
 
 
 _GENERIC_KNOWLEDGE_NOTE = (
@@ -375,7 +385,7 @@ _GENERIC_KNOWLEDGE_NOTE = (
 
 
 def _strip_markdown_fence(text: str) -> str:
-    """LLM 偶尔会违规包 ```json ... ``` · 容错剥掉。"""
+    """The LLM occasionally wraps output in ```json ... ``` against the rules · strip it tolerantly."""
     s = text.strip()
     if not s.startswith("```"):
         return s
@@ -386,7 +396,11 @@ def _strip_markdown_fence(text: str) -> str:
 
 
 def _coerce_match_report(data: dict, states: List[WorldState]) -> MatchReport:
-    """把 LLM 松散输出强行规范成合法 MatchReport · 参考 vlm_client._coerce_world_state。"""
+    """Coerce the LLM's loose output into a valid MatchReport · cf. vlm_client._coerce_world_state.
+
+    The Chinese fallback strings (grade default "可", placeholder titles/comments/summary)
+    are report content the product emits · kept Chinese.
+    """
 
     def _s(v, default: str = "") -> str:
         return str(v) if v is not None else default

@@ -1,11 +1,12 @@
-"""Qwen VLM 客户端 —— 语义识别层。
+"""Qwen VLM client — the semantic recognition layer.
 
-职责：读一帧画面的语义字段 —— 羁绊名 · 阵容 · 棋子分布 · 增强符文 —— 返回 WorldState。
-数字类（HP / 金币 / 等级）交给 OCR · 小图标交给 CV · VLM 只做它擅长的。
+Responsibility: read the semantic fields of one frame — trait names · composition · unit
+layout · augments — and return a WorldState. Numbers (HP / gold / level) go to OCR · small
+icons go to CV · the VLM only does what it is good at.
 
-接入：
-  vLLM 的 OpenAI 兼容接口（Qwen2.5-VL / Qwen3-VL 都可）· 或任何 OpenAI-compat endpoint。
-  mode="mock" 不依赖服务 · 返回一个合法的 WorldState（便于调试 pipeline）。
+Integration:
+  vLLM's OpenAI-compatible interface (Qwen2.5-VL / Qwen3-VL both work) · or any OpenAI-compatible endpoint.
+  mode="mock" needs no service · returns a valid WorldState (handy for debugging the pipeline).
 """
 from __future__ import annotations
 
@@ -48,7 +49,7 @@ VLM_PARSE_PROMPT = """你是《金铲铲之战》画面识别器。分析这张�
 
 
 def _coerce_world_state(payload: dict) -> WorldState:
-    """把 VLM 松散输出强行规范成合法 WorldState · 失败字段给默认值。"""
+    """Coerce the VLM's loose output into a valid WorldState · default any field that fails."""
     def _s(v, default=""): return str(v) if v is not None else default
     def _i(v, default=0, lo=None, hi=None):
         try:
@@ -162,7 +163,7 @@ class VLMClient:
             r.raise_for_status()
             body = r.json()
         content = body["choices"][0]["message"]["content"].strip()
-        # 容错 markdown 代码块
+        # Tolerate a markdown code fence
         if content.startswith("```"):
             content = content.split("```", 2)[1]
             if content.lstrip().startswith("json"):
@@ -179,7 +180,7 @@ class VLMClient:
             )
             return _coerce_world_state(data)
         except Exception as e:
-            log.warning("VLM parse 失败 · 降级 mock: %s", e)
+            log.warning("VLM parse failed · falling back to mock: %s", e)
             return self._mock_parse()
 
     def _mock_parse(self) -> WorldState:

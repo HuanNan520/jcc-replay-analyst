@@ -1,49 +1,49 @@
-# B2 · 实时 tick loop + 复盘归集
+# B2 · real-time tick loop + replay collection
 
-**分配给**：Claude Opus 4.7（`claude-opus-4-7`）· 核心架构 · 协调四个模块（B1 数据源 / 感知层 / B3 决策 / B4 广播）。
-**依赖**：B1（帧流）· B3（决策 LLM）· B4（广播服务）**先完成**。
-**预期工时**：1 天。
-**运行时**：**Windows 原生 Python**（需要访问 OBS 虚拟摄像头）。
-**新产品定位中的角色**：**实时 coach 的中央枢纽**。同时是复盘路线的新入口（对局结束自动调 `analyzer._llm_synthesize`）。
+**Assigned to**: Claude Opus 4.7 (`claude-opus-4-7`) · core architecture · coordinates four modules (B1 data source / perception layer / B3 decision / B4 broadcast).
+**Dependencies**: B1 (frame stream) · B3 (decision LLM) · B4 (broadcast service) **must be done first**.
+**Estimated effort**: 1 day.
+**Runtime**: **native Windows Python** (needs access to the OBS Virtual Camera).
+**Role in the new product positioning**: **the central hub of the real-time coach**. Also the new entry point for the replay route (auto-calls `analyzer._llm_synthesize` at match end).
 
 ---
 
-## 你是谁
+## Who you are
 
-你是被派到 `HuanNan520/jcc-replay-analyst` 执行 B2 的 Claude Opus 4.7。
-B1/B3/B4 已经 merge（你开工前会确认）· 你的任务是把它们串成一个**闭环实时 coach**。
+You are the Claude Opus 4.7 dispatched to `HuanNan520/jcc-replay-analyst` to execute B2.
+B1/B3/B4 are already merged (you'll confirm before starting) · your task is to wire them into a closed-loop **real-time coach**.
 
-同时 · 你要把"对局结束 → 自动合成复盘"这条副线也接上 —— 复用现有 `src/llm_analyzer.py` · 不写新 LLM 代码。
+At the same time · you wire up the "match end → auto-compose replay" side branch — reusing the existing `src/llm_analyzer.py` · without writing new LLM code.
 
-## 数据流
+## Data flow
 
 ```
 OBSCapture.frames()                           ← B1
       ↓ bytes (PNG)
-FrameMonitor.observe()                        ← 现有
-      ↓ 关键帧触发
-VLMClient.parse(bytes)                        ← 现有
+FrameMonitor.observe()                        ← existing
+      ↓ keyframe trigger
+VLMClient.parse(bytes)                        ← existing
       ↓ WorldState
-_infer_decision_context(ws)                   ← 你写
+_infer_decision_context(ws)                   ← you write this
       ↓ DecisionContext | None
-                      ↓ None → 仅存 ring_buffer · 不叫 LLM
-                      ↓ 有 → 调 B3
+                      ↓ None → only store in ring_buffer · don't call the LLM
+                      ↓ present → call B3
 DecisionLLM.decide(ws, ctx)                   ← B3
       ↓ Advice
 POST /advice to B4                            ← B4
-      ↓ 也入 ring_buffer
-                        
-[对局结束 · stage == "end"]
+      ↓ also goes into ring_buffer
+
+[match end · stage == "end"]
       ↓
-Analyzer._llm_synthesize(ring_buffer)         ← 现有 · 整局 WorldState 序列喂进来
+Analyzer._llm_synthesize(ring_buffer)         ← existing · the whole-match WorldState sequence is fed in
       ↓
 reports/S16-YYYYMMDD-HHMM.md + .json
 ```
 
-## 目标产物
+## Target deliverable
 
 ```bash
-# 一条命令起实时 coach
+# one command to start the real-time coach
 python -m src.live_tick \
   --advice-server http://localhost:8765 \
   --llm-url http://localhost:8000/v1 \
@@ -54,9 +54,9 @@ python -m src.live_tick \
 
 ---
 
-## 具体要做
+## What to do
 
-### 1. 新增 `src/live_tick.py`
+### 1. Add `src/live_tick.py`
 
 ```python
 from __future__ import annotations
@@ -88,15 +88,15 @@ log = logging.getLogger(__name__)
 # ==================== Decision Context Inference ====================
 
 def _infer_decision_context(ws: WorldState, prev_ws: Optional[WorldState]) -> Optional[DecisionContext]:
-    """根据 WorldState 变化推断当前是否到了决策点 · 返回 DecisionContext 或 None。
+    """Infers from WorldState changes whether we've reached a decision point · returns a DecisionContext or None.
 
-    决策点判定规则（保守 · 宁可漏不可错判）：
-    - augment: stage == 'augment' 且上一帧不是 augment（新弹出）· options 从 ws.augments 最后三项或空占位
-    - carousel: stage == 'carousel' · options 从 ws.shop 5 个棋子名取
-    - positioning: stage == 'positioning' · 单次触发
-    - level: stage 切换到 'pve' / 'pvp' 刚开始 · 且 gold >= (level+1)*4（够升）
-    - shop: 跳过 · 商店每回合都在 · 触发太频繁 · 等用户需求确认再加
-    - item: bag 增到 >= 2 且出现新组件（变化检测）
+    Decision-point rules (conservative · prefer to miss rather than misfire):
+    - augment: stage == 'augment' and the previous frame was not augment (newly popped) · options come from the last three of ws.augments or empty placeholders
+    - carousel: stage == 'carousel' · options come from the 5 champion names in ws.shop
+    - positioning: stage == 'positioning' · single trigger
+    - level: stage just switched into 'pve' / 'pvp' · and gold >= (level+1)*4 (enough to level)
+    - shop: skip · the shop is up every round · triggers too often · add it once user need is confirmed
+    - item: bag grows to >= 2 and a new component appears (change detection)
     """
     if ws.stage == "augment" and (prev_ws is None or prev_ws.stage != "augment"):
         return DecisionContext(kind="augment", options=ws.augments[-3:] if ws.augments else ["?", "?", "?"])
@@ -104,13 +104,13 @@ def _infer_decision_context(ws: WorldState, prev_ws: Optional[WorldState]) -> Op
         return DecisionContext(kind="carousel", options=list(ws.shop[:5]))
     if ws.stage == "positioning" and (prev_ws is None or prev_ws.stage != "positioning"):
         return DecisionContext(kind="positioning", options=[])
-    # level: 进入战斗回合开始时 · 且经济够升级门槛
+    # level: at the start of a combat round · and economy clears the level-up threshold
     level_thresholds = {1: 0, 2: 2, 3: 6, 4: 10, 5: 20, 6: 36, 7: 56, 8: 80, 9: 96}
     if ws.stage in ("pve", "pvp") and (prev_ws is None or prev_ws.stage not in ("pve", "pvp")):
         required = level_thresholds.get(ws.level + 1, 999)
         if ws.gold >= required and ws.level < 9:
             return DecisionContext(kind="level", options=[])
-    # item: bag 变多
+    # item: bag grew
     if prev_ws is not None and len(ws.bag) >= 2 and len(ws.bag) > len(prev_ws.bag):
         return DecisionContext(kind="item", options=[b.name for b in ws.bag])
     return None
@@ -150,7 +150,8 @@ def _save_report(report: MatchReport, reports_dir: Path) -> Path:
     md_path = reports_dir / f"{report.match_id}-{stamp}.md"
     json_path = md_path.with_suffix(".json")
 
-    # 复用 scripts/analyze.py:report_to_markdown · 但那是 CLI 内部函数 · 简单复刻一份
+    # reuses scripts/analyze.py:report_to_markdown · but that's a CLI-internal function · just clone it here
+    # NOTE: the report body below is the generated Chinese match report · kept as a functional output template
     lines = [
         f"# 对局复盘 · {report.match_id}",
         "",
@@ -173,7 +174,7 @@ def _save_report(report: MatchReport, reports_dir: Path) -> Path:
     lines += ["## AI 总评", "", report.summary, ""]
     md_path.write_text("\n".join(lines), encoding="utf-8")
     json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
-    log.info("复盘已保存 · %s", md_path)
+    log.info("replay saved · %s", md_path)
     return md_path
 
 
@@ -202,56 +203,56 @@ class LiveTickLoop:
         self._match_started = False
 
     async def run(self) -> None:
-        log.info("LiveTickLoop 启动 · reports_dir=%s", self.reports_dir)
+        log.info("LiveTickLoop started · reports_dir=%s", self.reports_dir)
         async for frame in self.capture.frames():
             events = self.monitor.observe(frame)
             if not self.monitor.any_triggered(events) and self._match_started:
-                continue   # 无关键帧变化 · 省 VLM 调用
+                continue   # no keyframe change · save the VLM call
             event_kind = classify(self.monitor.changed_regions(events))
             log.debug("frame event=%s", event_kind)
 
             try:
                 ws = await self.vlm.parse(frame)
             except Exception as e:
-                log.warning("VLM parse 失败 · %s", e)
+                log.warning("VLM parse failed · %s", e)
                 continue
 
-            # 过滤无效状态（感知层可能给 unknown）
+            # filter out invalid states (the perception layer may return unknown)
             if ws.stage == "unknown" and self._prev_ws is None:
                 continue
 
-            # 第一次见有效 stage · 标记对局开始
+            # first valid stage seen · mark the match as started
             if ws.stage != "unknown" and not self._match_started:
                 self._match_started = True
-                log.info("对局开始 · round=%s stage=%s", ws.round, ws.stage)
+                log.info("match started · round=%s stage=%s", ws.round, ws.stage)
 
             self.ring.append(ws)
 
-            # 对局结束 · 触发复盘
+            # match end · trigger replay
             if ws.stage == "end" and self._prev_ws is not None and self._prev_ws.stage != "end":
                 await self._finalize_match()
                 self._prev_ws = ws
                 continue
 
-            # 决策点判断
+            # decision-point check
             ctx = _infer_decision_context(ws, self._prev_ws)
             if ctx:
-                log.info("决策点触发 · kind=%s round=%s", ctx.kind, ws.round)
+                log.info("decision point triggered · kind=%s round=%s", ctx.kind, ws.round)
                 try:
                     advice = await self.decision_llm.decide(ws, ctx)
                     await self.publisher.publish(advice)
                 except Exception as e:
-                    log.warning("决策链路失败 · %s", e)
+                    log.warning("decision chain failed · %s", e)
 
             self._prev_ws = ws
 
     async def _finalize_match(self) -> None:
-        log.info("对局结束 · 合成复盘 · ring size=%d", len(self.ring))
+        log.info("match ended · composing replay · ring size=%d", len(self.ring))
         try:
             report = await self.post_match_llm.synthesize(list(self.ring))
             _save_report(report, self.reports_dir)
         except Exception as e:
-            log.error("复盘合成失败 · %s", e)
+            log.error("replay synthesis failed · %s", e)
         self.ring.clear()
         self._match_started = False
         self._prev_ws = None
@@ -276,7 +277,7 @@ async def _main():
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    knowledge = load_knowledge()   # 默认 season='s17' · 实际赛季
+    knowledge = load_knowledge()   # default season='s17' · the live season
     capture = OBSCapture(fps=args.fps)
     vlm = VLMClient(base_url=args.vlm_url, model=args.vlm_model, mode="real")
     decision_llm = DecisionLLM(base_url=args.llm_url, model=args.llm_model, knowledge=knowledge)
@@ -302,9 +303,9 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. 单元测试 `tests/test_live_tick.py`
+### 2. Unit test `tests/test_live_tick.py`
 
-重点测 `_infer_decision_context` 的判定逻辑（无需真 LLM / 真 OBS）：
+Focus on the decision logic in `_infer_decision_context` (no real LLM / real OBS needed):
 
 ```python
 import time
@@ -341,7 +342,7 @@ class TestDecisionContextInference:
 
     def test_level_triggered_when_gold_enough(self):
         prev = _ws("augment")
-        curr = _ws("pve", gold=10, level=3)  # 升 4 级要 10 金
+        curr = _ws("pve", gold=10, level=3)  # leveling to 4 needs 10 gold
         ctx = _infer_decision_context(curr, prev_ws=prev)
         assert ctx and ctx.kind == "level"
 
@@ -361,7 +362,7 @@ class TestDecisionContextInference:
         prev = _ws("pve", gold=10, level=3)
         curr = _ws("pvp", gold=8, level=4)
         ctx = _infer_decision_context(curr, prev_ws=prev)
-        assert ctx is None   # 已经在战斗回合里 · 不重复触发 level
+        assert ctx is None   # already in a combat round · don't re-trigger level
 
     def test_no_trigger_on_pvp_steady(self):
         prev = _ws("pvp")
@@ -370,60 +371,60 @@ class TestDecisionContextInference:
         assert ctx is None
 ```
 
-### 3. 小调整：`Analyzer` 暴露的接口和 `LocalLLMAnalyzer` 复用
+### 3. Minor tweak: the interface `Analyzer` exposes and the `LocalLLMAnalyzer` reuse
 
-看 `src/analyzer.py` · 如果 `_llm_synthesize` 是 `Analyzer` 的方法 · 它实际调了 `LocalLLMAnalyzer.synthesize` —— 那你直接 `LocalLLMAnalyzer(...)` 实例化一样 · 上面代码里已是这个用法。
+Look at `src/analyzer.py` · if `_llm_synthesize` is a method of `Analyzer` that actually calls `LocalLLMAnalyzer.synthesize` — then instantiating `LocalLLMAnalyzer(...)` directly works the same · the code above already uses it this way.
 
-**不要改 `analyzer.py`** —— 复盘路径保持 CLI 入口可用。
-
----
-
-## 禁止做的事
-
-- 不要自己写 LLM 调用 · 直接用 B3 的 DecisionLLM + 现有 LocalLLMAnalyzer
-- 不要改 `src/schema.py` · `src/vlm_client.py` · `src/llm_analyzer.py` · `src/knowledge.py` 任何一个
-- 不要写"每帧打 VLM"的暴力版本 —— FrameMonitor 的关键帧触发是省算力核心
-- 不要引入 queue.Queue / threading · 全程 asyncio
-- 不要硬编码 screen_size · 用 FrameMonitor 的 auto orientation 推断（或者让 B1 返回分辨率）
-- 不要写 daemon / supervisor 逻辑 —— 崩了就崩 · 上层用 shell systemd / nssm 守
-- 不要持久化 ring buffer 到磁盘 · 完全内存 · 对局结束落报告
-- 不要给每类 event 都写特殊分支 —— `classify` 的返回值目前只用来 debug log
+**Do not modify `analyzer.py`** — keep the replay path's CLI entry usable.
 
 ---
 
-## 自验收清单
+## What not to do
 
-- [ ] `python -c "from src.live_tick import LiveTickLoop, _infer_decision_context, AdvicePublisher, _save_report"` 导入无错
-- [ ] `pytest tests/test_live_tick.py -v` 全绿 · 至少 9 个测试
-- [ ] `python -m src.live_tick --help` 打印完整参数列表
-- [ ] **集成测试 · 需要 B1/B3/B4 都跑着**：
-  - 起 vLLM (8000) + advice_server (8765) + OBS 虚拟摄像头（开 MuMu）
-  - 跑 `python -m src.live_tick --fps 1`
-  - 进游戏选秀或选增强 · 看 `ws://localhost:8765/ws/advice` 有没有 advice 推来（用 websocat 验）
-  - advice JSON 合法 · 含 kind/reasoning/confidence
-- [ ] 对局走到 end stage · `reports/` 目录下出现 `.md` 和 `.json` 文件
-- [ ] 跑完 40 个原 pytest + 9 个新 · 零回归
-- [ ] `git diff --stat` 只含：
-  - `src/live_tick.py` (新)
-  - `tests/test_live_tick.py` (新)
-  - `README.md` (可选 · 加一小段运行说明)
-
-## 完成后
-
-给用户 ≤ 200 字报告：
-- 一次完整对局跑下来 · 触发了几类决策（augment × N / positioning × N / ...）
-- 平均每帧处理耗时（FrameMonitor + VLM + 可能的 LLM）
-- 对局结束 · 复盘文件路径 + 大小
-- `_infer_decision_context` 的**假阴性 / 假阳性**观察（比如漏了某个关键节点 / 多触发一次）
-- 给后续调优的 TODO 线索
-
-不 git commit。
+- Do not write your own LLM calls · use B3's DecisionLLM + the existing LocalLLMAnalyzer directly
+- Do not modify any of `src/schema.py` · `src/vlm_client.py` · `src/llm_analyzer.py` · `src/knowledge.py`
+- Do not write a "VLM every frame" brute-force version — FrameMonitor's keyframe triggering is the core compute saver
+- Do not introduce queue.Queue / threading · all asyncio
+- Do not hardcode screen_size · use FrameMonitor's auto orientation inference (or have B1 return the resolution)
+- Do not write daemon / supervisor logic — if it crashes, it crashes · let a shell systemd / nssm above guard it
+- Do not persist the ring buffer to disk · fully in-memory · drop a report at match end
+- Do not write a special branch for every event kind — `classify`'s return value is currently only used for debug logging
 
 ---
 
-## 参考
+## Self-acceptance checklist
 
-- FrameMonitor.classify 的事件类型 · 看 `src/frame_monitor.py:216`
-- A1 的 `src/llm_analyzer.py` 直接复用为 post-match analyzer · 不改
-- B3 的 `DecisionLLM` / `DecisionContext` / `Advice` · 看 `src/decision_llm.py`
-- B4 的 `/advice` endpoint body shape · 看 `src/advice_server.py`
+- [ ] `python -c "from src.live_tick import LiveTickLoop, _infer_decision_context, AdvicePublisher, _save_report"` imports without error
+- [ ] `pytest tests/test_live_tick.py -v` all green · at least 9 tests
+- [ ] `python -m src.live_tick --help` prints the full argument list
+- [ ] **Integration test · requires B1/B3/B4 all running**:
+  - Start vLLM (8000) + advice_server (8765) + the OBS Virtual Camera (with MuMu open)
+  - Run `python -m src.live_tick --fps 1`
+  - Enter the game carousel or augment pick · check whether advice arrives at `ws://localhost:8765/ws/advice` (verify with websocat)
+  - The advice JSON is valid · contains kind/reasoning/confidence
+- [ ] Play through to the end stage · `.md` and `.json` files appear in the `reports/` directory
+- [ ] Run the original 40 pytest + the 9 new ones · zero regressions
+- [ ] `git diff --stat` only contains:
+  - `src/live_tick.py` (new)
+  - `tests/test_live_tick.py` (new)
+  - `README.md` (optional · add a small run section)
+
+## After completion
+
+Give the user a ≤ 200-word report:
+- Over one full match · how many of each decision kind triggered (augment × N / positioning × N / ...)
+- Average per-frame processing time (FrameMonitor + VLM + possible LLM)
+- At match end · the replay file path + size
+- Observed **false negatives / false positives** of `_infer_decision_context` (e.g. missed a key node / triggered one extra)
+- TODO leads for later tuning
+
+No git commit.
+
+---
+
+## References
+
+- FrameMonitor.classify's event types · see `src/frame_monitor.py:216`
+- A1's `src/llm_analyzer.py` is reused directly as the post-match analyzer · don't change it
+- B3's `DecisionLLM` / `DecisionContext` / `Advice` · see `src/decision_llm.py`
+- B4's `/advice` endpoint body shape · see `src/advice_server.py`

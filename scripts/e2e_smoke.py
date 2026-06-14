@@ -1,15 +1,15 @@
-"""端到端 smoke demo · 证明实时 coach 全链路连通。
+"""End-to-end smoke demo · proves the full real-time coach pipeline is connected.
 
-不依赖真 OBS · 不依赖真 vLLM · 只在 WSL 里 mock 全链路跑一遍。
-独立可跑：python scripts/e2e_smoke.py
+No real OBS · no real vLLM · just runs the whole pipeline mocked inside WSL.
+Standalone runnable: python scripts/e2e_smoke.py
 
-步骤：
-  1/7 · OBSCapture mock       · 加载 examples/sample_frames/ 12 张 PNG bytes
-  2/7 · FrameMonitor analyzing · 对所有帧跑 observe()
-  3/7 · VLMClient mock        · 12 帧各产出一个语义丰富 WorldState
-  4/7 · advice_server         · 在 port 8765 启动 subprocess
-  5/7 · DecisionLLM           · 每类 decision 至少触发一次（augment/carousel/level/positioning/item）
-  6/7 · WebSocket client      · 订阅并验证 broadcast
+Steps:
+  1/7 · OBSCapture mock       · load 12 PNG bytes from examples/sample_frames/
+  2/7 · FrameMonitor analyzing · run observe() on all frames
+  3/7 · VLMClient mock        · produce one semantically rich WorldState per frame (12 total)
+  4/7 · advice_server         · start a subprocess on port 8765
+  5/7 · DecisionLLM           · trigger each decision at least once (augment/carousel/level/positioning/item)
+  6/7 · WebSocket client      · subscribe and verify the broadcast
   7/7 · LocalLLMAnalyzer → render_report_html → /tmp/e2e_smoke_report.html
 """
 from __future__ import annotations
@@ -65,7 +65,7 @@ _t0_global: float = time.time()
 
 
 def _ts() -> str:
-    """相对时间戳。"""
+    """Relative timestamp."""
     return f"{time.time() - _t0_global:6.1f}s"
 
 
@@ -81,19 +81,19 @@ def sub(msg: str, elapsed: Optional[float] = None) -> None:
 # ── Step 1 · OBSCapture mock ──────────────────────────────────────────────────
 
 def load_mock_frames() -> list[bytes]:
-    """读取 sample_frames/ 下所有 JPG · 返回 bytes 列表（模拟 OBSCapture.frames()）。"""
+    """Read all JPGs under sample_frames/ · return a list of bytes (simulating OBSCapture.frames())."""
     paths = sorted(FRAMES_DIR.glob("*.jpg"))
     if not paths:
-        raise RuntimeError(f"sample_frames/ 下无 JPG: {FRAMES_DIR}")
+        raise RuntimeError(f"no JPG under sample_frames/: {FRAMES_DIR}")
     frames: list[bytes] = []
     for p in paths:
         frames.append(p.read_bytes())
     return frames
 
 
-# ── Step 3 · 语义丰富的 WorldState 序列 ──────────────────────────────────────
+# ── Step 3 · semantically rich WorldState sequence ──────────────────────────────────────
 
-# 根据帧文件名给出有意义的 stage 和数据
+# give each frame a meaningful stage and data based on its filename
 _FRAME_OVERRIDES: list[dict] = [
     # frame_001_pick
     dict(stage="pick", round="1-1", hp=100, gold=2,  level=1, exp="0/2",
@@ -225,11 +225,11 @@ _FRAME_OVERRIDES: list[dict] = [
          opponents_preview=[]),
 ]
 
-_BASE_TS = time.time() - 300.0  # 局开始于 5 分钟前
+_BASE_TS = time.time() - 300.0  # the match started 5 minutes ago
 
 
 def _make_world_states(frame_bytes_list: list[bytes]) -> list[WorldState]:
-    """为每一帧构造一个语义丰富的 WorldState（mock 模式 · 不调 VLM 服务）。"""
+    """Build a semantically rich WorldState for each frame (mock mode · does not call the VLM service)."""
     states: list[WorldState] = []
     for i, fb in enumerate(frame_bytes_list):
         override = _FRAME_OVERRIDES[i] if i < len(_FRAME_OVERRIDES) else {}
@@ -256,7 +256,7 @@ def _make_world_states(frame_bytes_list: list[bytes]) -> list[WorldState]:
 # ── Step 2 · FrameMonitor ─────────────────────────────────────────────────────
 
 def run_frame_monitor(frame_bytes_list: list[bytes]) -> tuple[FrameMonitor, int]:
-    """跑真 FrameMonitor · 返回 (monitor, key_event_count)。"""
+    """Run a real FrameMonitor · return (monitor, key_event_count)."""
     from PIL import Image
     first_img = Image.open(io.BytesIO(frame_bytes_list[0]))
     monitor = FrameMonitor(screen_size=first_img.size)
@@ -271,7 +271,7 @@ def run_frame_monitor(frame_bytes_list: list[bytes]) -> tuple[FrameMonitor, int]
 # ── Step 4/5 · advice_server + DecisionLLM ───────────────────────────────────
 
 async def start_advice_server() -> subprocess.Popen:
-    """在 subprocess 里启动 advice_server · 返回 Popen 对象。"""
+    """Start advice_server in a subprocess · return the Popen object."""
     cmd = [
         sys.executable,
         "-m", "src.advice_server",
@@ -285,7 +285,7 @@ async def start_advice_server() -> subprocess.Popen:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    # 等待端口就绪（最多 5s）
+    # wait for the port to become ready (up to 5s)
     import socket
     deadline = time.time() + 5.0
     while time.time() < deadline:
@@ -294,21 +294,21 @@ async def start_advice_server() -> subprocess.Popen:
                 return proc
         except (ConnectionRefusedError, OSError):
             await asyncio.sleep(0.15)
-    raise RuntimeError(f"advice_server 未在 {ADVICE_PORT} 就绪（5s timeout）")
+    raise RuntimeError(f"advice_server not ready on {ADVICE_PORT} (5s timeout)")
 
 
 async def check_vllm_available(
     base_url: str = "http://localhost:8000/v1",
 ) -> tuple[bool, str]:
-    """探活 vLLM：先检查 /models · 再发一条最小 chat completions 确认模型已加载。
+    """Probe vLLM: first check /models · then send a minimal chat completion to confirm the model is loaded.
 
     Returns:
-        (available, model_id)  model_id 为空字符串表示不可用。
+        (available, model_id)  an empty model_id string means unavailable.
     """
     import httpx
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
-            # 1. models 端点存在
+            # 1. the models endpoint exists
             r = await client.get(f"{base_url}/models")
             if r.status_code != 200:
                 return False, ""
@@ -316,7 +316,7 @@ async def check_vllm_available(
             if not models:
                 return False, ""
             model_id = models[0]["id"]
-            # 2. 发一条最小推理确认模型真的在跑
+            # 2. send a minimal inference to confirm the model is actually running
             probe = {
                 "model": model_id,
                 "messages": [{"role": "user", "content": "hi"}],
@@ -337,19 +337,19 @@ async def run_decision_llm(
     model_id: str = "Qwen3-VL-4B-FP8",
     base_url: str = "http://localhost:8000/v1",
 ) -> list[tuple[str, float, str, object]]:
-    """对每类 decision 触发一次 · 返回 [(kind, elapsed, mode, advice)] 列表。"""
+    """Trigger each decision once · return a list of [(kind, elapsed, mode, advice)]."""
     llm = DecisionLLM(
         base_url=base_url,
         model=model_id or "Qwen3-VL-4B-FP8",
         timeout=5.0,
     )
 
-    # 找对应 stage 的 WorldState
+    # find the WorldState for each stage
     stage_to_ws: dict[str, WorldState] = {}
     for ws in states:
         stage_to_ws.setdefault(ws.stage, ws)
 
-    # 决策任务：(kind, options, 首选 ws stage)
+    # decision tasks: (kind, options, preferred ws stage)
     tasks: list[tuple[str, list[str], str]] = [
         ("augment", ["法师之力", "复利", "攻速强化"], "augment"),
         ("carousel", ["安妮", "盖伦", "剑圣", "亚索"], "pick"),
@@ -360,7 +360,7 @@ async def run_decision_llm(
 
     results: list[tuple[str, float, str, object]] = []
     for kind, options, preferred_stage in tasks:
-        ws = stage_to_ws.get(preferred_stage) or states[5]  # fallback 到 pvp 帧
+        ws = stage_to_ws.get(preferred_stage) or states[5]  # fall back to the pvp frame
         ctx = DecisionContext(kind=kind, options=options, timeout_s=25.0)  # type: ignore[arg-type]
         t0 = time.time()
         advice = await llm.decide(ws, ctx)
@@ -377,7 +377,7 @@ async def run_decision_llm(
 
 
 async def post_advice_to_server(kind: str, advice_obj: object) -> None:
-    """把 advice 用 HTTP POST 推给 advice_server /advice。"""
+    """POST the advice to advice_server /advice over HTTP."""
     import httpx
     url = f"http://{ADVICE_HOST}:{ADVICE_PORT}/advice"
     try:
@@ -385,13 +385,13 @@ async def post_advice_to_server(kind: str, advice_obj: object) -> None:
         async with httpx.AsyncClient(timeout=3.0) as client:
             await client.post(url, json=payload)
     except Exception:
-        pass  # 广播失败不阻断流程
+        pass  # a broadcast failure does not block the flow
 
 
 # ── Step 6 · WebSocket client ──────────────────────────────────────────────────
 
 async def ws_collect_broadcasts(expected: int, timeout: float = 8.0) -> list[dict]:
-    """连接 WS · 收集至少 expected 条 advice broadcast · 返回消息列表。"""
+    """Connect to the WS · collect at least `expected` advice broadcasts · return the message list."""
     import websockets
     url = f"ws://{ADVICE_HOST}:{ADVICE_PORT}/ws/advice"
     received: list[dict] = []
@@ -423,7 +423,7 @@ async def run_analyzer(
     model_id: str = "Qwen3-VL-4B-FP8",
     base_url: str = "http://localhost:8000/v1",
 ) -> MatchReport:
-    """触发复盘 · vLLM 可用真跑 · 否则 _empty_report + 手工填充。"""
+    """Trigger the replay analysis · run for real if vLLM is available · otherwise _empty_report + manual fill."""
     if vllm_ok:
         analyzer = LocalLLMAnalyzer(
             base_url=base_url,
@@ -432,7 +432,7 @@ async def run_analyzer(
         )
         report = await analyzer.synthesize(states)
     else:
-        # vLLM 不可用 · 用 _empty_report 骨架 + 手工填充演示字段
+        # vLLM unavailable · use the _empty_report skeleton + manually fill demo fields
         report = MatchReport(
             match_id=f"E2E-SMOKE-{int(time.time())}",
             rank_tier="钻石 III",
@@ -512,11 +512,11 @@ async def main() -> int:
         # ── Step 3 · VLMClient mock → WorldState ─────────────────────────────
         t = time.time()
         step(3, total_steps, "VLMClient mock · building WorldState sequence")
-        # 用 VLMClient(mode="mock") 验证 pipeline 接口 · 但用语义丰富版覆盖数据
+        # use VLMClient(mode="mock") to validate the pipeline interface · but override with rich semantic data
         vlm = VLMClient(mode="mock")
-        # 先跑一次确认接口可用
+        # run once first to confirm the interface works
         _ = await vlm.parse(frame_bytes_list[0])
-        # 用覆盖版语义数据（mock 原始输出全是 unknown · 无演示价值）
+        # use the overriding semantic data (mock raw output is all unknown · no demo value)
         states = _make_world_states(frame_bytes_list)
         elapsed = time.time() - t
         stages = [ws.stage for ws in states]
@@ -540,11 +540,11 @@ async def main() -> int:
 
         decision_results = await run_decision_llm(states, vllm_ok, model_id=vllm_model_id)
 
-        # 推送到 advice_server（让 WS client 能收到 broadcast）
+        # push to advice_server (so the WS client can receive the broadcast)
         for kind, elapsed_kind, mode, advice in decision_results:
             sub(f"{kind} advice · {elapsed_kind:.1f}s · {mode}")
             await post_advice_to_server(kind, advice)
-            await asyncio.sleep(0.05)  # 小间隔让 WS 有时间推送
+            await asyncio.sleep(0.05)  # a small gap to give the WS time to push
 
         elapsed = time.time() - t
 
@@ -564,7 +564,7 @@ async def main() -> int:
         t = time.time()
         step(7, total_steps, "LocalLLMAnalyzer → render_report_html")
 
-        # 完整序列给 analyzer（end 帧已经在 states[-1] 中）
+        # give the full sequence to the analyzer (the end frame is already in states[-1])
         all_states_for_report = states
 
         report = await run_analyzer(all_states_for_report, vllm_ok, model_id=vllm_model_id)

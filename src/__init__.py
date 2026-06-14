@@ -1,31 +1,32 @@
-"""jcc-replay-analyst · 金铲铲之战 AI 教练。
+"""jcc-replay-analyst · an AI coach for Teamfight Tactics (China-server mobile, jkchess).
 
-实时对局建议 + 自动赛后复盘 双入口。只读屏 · 不操作游戏 · 合规。
+Two entry points: real-time in-match advice + automatic post-match replay analysis.
+Screen-read only · never controls the game · compliant.
 
-组件分层：
+Component layers:
 
-感知层（两路径共享）:
-  frame_monitor  dHash 关键帧检测 · 按 ROI 分区
-  ocr_client     PaddleOCR · 读中文数字 / UI 文字
-  arrow_finder   OpenCV · 找屏幕高亮 UI 元素
-  vlm_client     Qwen VLM · 识别棋盘/阵容/羁绊等语义 → WorldState
+Perception layer (shared by both paths):
+  frame_monitor  dHash keyframe detection · partitioned by ROI
+  ocr_client     PaddleOCR · reads Chinese numbers / UI text
+  arrow_finder   OpenCV · locates highlighted UI elements on screen
+  vlm_client     Qwen VLM · recognizes board / composition / traits semantically -> WorldState
   schema         WorldState / Unit / ActiveTrait / MatchReport
 
-数据源:
-  adb_client     ADB 截屏（旧路线 · 仅复盘用）
-  capture_obs    OBS 虚拟摄像头（实时路线 · 主推）
+Data sources:
+  adb_client     ADB screencap (legacy path · replay analysis only)
+  capture_obs    OBS virtual camera (real-time path · primary)
 
-知识 RAG:
-  knowledge      包 jcc-daida · S17 默认 · S16 向后兼容 · 为 LLM 注版本上下文
+Knowledge RAG:
+  knowledge      wraps jcc-daida · S17 default · S16 backward compatible · injects version context for the LLM
 
-决策 + 推理:
-  decision_llm   六类决策点的短 prompt · 本地 vLLM guided_json · ≤3s
-  llm_analyzer   整局 WorldState 序列 → MatchReport · 本地 vLLM guided_json
-  analyzer       复盘路径 pipeline 编排（吃录屏/截图序列 → MatchReport）
-  live_tick      实时路径 tick loop · 协调感知 → 决策 → 广播 · 对局结束归集复盘
+Decision + reasoning:
+  decision_llm   short prompts for six decision-point types · local vLLM guided_json · <=3s
+  llm_analyzer   full-match WorldState sequence -> MatchReport · local vLLM guided_json
+  analyzer       replay-path pipeline orchestration (recording/screenshot sequence -> MatchReport)
+  live_tick      real-time tick loop · coordinates perception -> decision -> broadcast · assembles a replay when the match ends
 
-交付:
-  advice_server  FastAPI + WebSocket · 建议广播
-  overlay_ui     PyQt6 半透明卡片 · Win32 FindWindow 跟随 MuMu（Windows only）
-  report_renderer  MatchReport → self-contained HTML（深色金色视觉）
+Delivery:
+  advice_server  FastAPI + WebSocket · advice broadcast
+  overlay_ui     PyQt6 translucent card · Win32 FindWindow follows MuMu (Windows only)
+  report_renderer  MatchReport -> self-contained HTML (dark gold visual theme)
 """

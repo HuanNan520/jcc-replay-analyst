@@ -1,44 +1,44 @@
-# B1 · OBS 虚拟摄像头数据源
+# B1 · OBS Virtual Camera data source
 
-**分配给**：Claude Sonnet 4.6（`claude-sonnet-4-6`）· 中等复杂度 · 平台 API 探测 + 稳定帧流。
-**依赖**：无 · 可和 B3 / B4 并行。
-**预期工时**：2–3 小时。
-**运行平台**：**Windows 原生 Python**（WSL2 访问不了 Windows 摄像头设备 · 这条是硬性）。
-**新产品定位中的角色**：**实时 tick loop 的数据源**（替代原来的 ADB 截屏）。
+**Assigned to**: Claude Sonnet 4.6 (`claude-sonnet-4-6`) · medium complexity · platform-API probing + stable frame stream.
+**Dependencies**: none · can run in parallel with B3 / B4.
+**Estimated effort**: 2–3 hours.
+**Runtime platform**: **native Windows Python** (WSL2 cannot access Windows camera devices · this is a hard requirement).
+**Role in the new product positioning**: **the data source for the real-time tick loop** (replaces the old ADB screencap).
 
 ---
 
-## 你是谁
+## Who you are
 
-你是被派到 `HuanNan520/jcc-replay-analyst` 执行 B1 任务的 Claude Sonnet 4.6。
-项目刚从"录屏复盘工具"升级到 **实时 AI 教练 + 自动复盘** 双入口。
-A1-A4 已完成 · 现在进入 B 阶段 · 你负责**实时数据源**。
+You are the Claude Sonnet 4.6 dispatched to `HuanNan520/jcc-replay-analyst` to execute task B1.
+The project just upgraded from a "screen-recording replay tool" into a dual-entry **real-time AI coach + automatic replay**.
+A1-A4 are done · now we enter phase B · you own the **real-time data source**.
 
-## 背景
+## Background
 
-新产品形态：
-- 玩家在 Windows 上玩 MuMu 模拟器里的金铲铲
-- OBS Studio 抓 MuMu 窗口 → 开启"虚拟摄像头"输出（Windows 视频设备层）
-- **你的任务**：Python 脚本持续读这个虚拟摄像头 · 吐 PNG bytes 流给下游
+The new product form:
+- The player plays TFT inside the MuMu emulator on Windows
+- OBS Studio captures the MuMu window → enables "Virtual Camera" output (the Windows video-device layer)
+- **Your task**: a Python script that continuously reads this virtual camera · emitting a stream of PNG bytes to downstream
 
-**为什么不用 ADB 截屏**：ADB debugging 持续连接腾讯反外挂可能检测 · 有封号风险（已踩过坑）。OBS 虚拟摄像头是纯 Windows 系统层的视频设备 · Android 侧完全感知不到。
+**Why not ADB screencap**: a persistent ADB debugging connection may be detected by Tencent anti-cheat · ban risk (already been burned). The OBS Virtual Camera is a pure Windows-system-layer video device · the Android side cannot perceive it at all.
 
-## 目标产物
+## Target deliverable
 
 ```python
-# 伪代码 · 下游怎么用
+# pseudocode · how downstream uses it
 from src.capture_obs import OBSCapture
 
 cap = OBSCapture(fps=2.0)
 async for frame_bytes in cap.frames():
-    # frame_bytes 是一张 PNG 编码的图
-    # 和 adb_client.screencap() 返回格式一致
+    # frame_bytes is one PNG-encoded image
+    # same format as adb_client.screencap() returns
     ...
 ```
 
-## 具体要做
+## What to do
 
-### 1. 新增 `src/capture_obs.py`
+### 1. Add `src/capture_obs.py`
 
 ```python
 from __future__ import annotations
@@ -59,14 +59,14 @@ class OBSCaptureError(RuntimeError):
 
 
 class OBSCapture:
-    """从 OBS Virtual Camera 读帧 · 转成 PNG bytes 吐给下游。
+    """Reads frames from the OBS Virtual Camera · converts them to PNG bytes for downstream.
 
-    用法：
+    Usage:
         cap = OBSCapture(fps=2.0)
         async for frame in cap.frames():
-            ...  # frame 是 PNG bytes · 和 adb_client.screencap 同格式
+            ...  # frame is PNG bytes · same format as adb_client.screencap
 
-    Windows only · WSL2 访问不到 Windows 摄像头设备。
+    Windows only · WSL2 cannot access Windows camera devices.
     """
 
     def __init__(
@@ -84,36 +84,36 @@ class OBSCapture:
         self._period = 1.0 / fps
 
     def _discover_device(self) -> int:
-        """枚举 Windows 视频设备 · 找名字含 hint 的那个。
+        """Enumerates Windows video devices · finds the one whose name contains the hint.
 
-        用 pygrabber.dshow_graph.FilterGraph().get_input_devices() ·
-        fallback 到遍历 cv2.VideoCapture(0..9) 看分辨率。
+        Uses pygrabber.dshow_graph.FilterGraph().get_input_devices() ·
+        falls back to iterating cv2.VideoCapture(0..9) and checking resolution.
         """
         try:
             from pygrabber.dshow_graph import FilterGraph
             devices = FilterGraph().get_input_devices()
-            log.info("检测到 %d 个视频设备: %s", len(devices), devices)
+            log.info("detected %d video devices: %s", len(devices), devices)
             for i, name in enumerate(devices):
                 if self.device_name_hint.lower() in name.lower():
-                    log.info("匹配 OBS 虚拟摄像头 · index=%d · name=%s", i, name)
+                    log.info("matched OBS Virtual Camera · index=%d · name=%s", i, name)
                     return i
             raise OBSCaptureError(
-                f"未找到包含 '{self.device_name_hint}' 的视频设备 · "
-                f"可选列表: {devices} · 请确认 OBS Studio 已启动且开启虚拟摄像头（Start Virtual Camera 按钮）"
+                f"no video device containing '{self.device_name_hint}' found · "
+                f"available list: {devices} · make sure OBS Studio is running with the virtual camera on (Start Virtual Camera button)"
             )
         except ImportError:
-            log.warning("pygrabber 未安装 · 降级遍历设备")
+            log.warning("pygrabber not installed · falling back to device iteration")
             for i in range(10):
                 c = cv2.VideoCapture(i)
                 if c.isOpened():
                     w = int(c.get(cv2.CAP_PROP_FRAME_WIDTH))
                     h = int(c.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     c.release()
-                    log.info("设备 %d · %dx%d", i, w, h)
+                    log.info("device %d · %dx%d", i, w, h)
                     if w >= self.expected_min_width:
                         return i
             raise OBSCaptureError(
-                f"遍历 10 个设备未找到分辨率 >={self.expected_min_width} 的摄像头 · 请装 pygrabber 或手动传 device_index"
+                f"iterated 10 devices, none with resolution >={self.expected_min_width} · install pygrabber or pass device_index manually"
             )
 
     def open(self) -> None:
@@ -121,10 +121,10 @@ class OBSCapture:
             self._device_index = self._discover_device()
         self._cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
         if not self._cap.isOpened():
-            raise OBSCaptureError(f"cv2.VideoCapture({self._device_index}) 打开失败")
+            raise OBSCaptureError(f"cv2.VideoCapture({self._device_index}) failed to open")
         w = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         h = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        log.info("OBS 虚拟摄像头已打开 · %dx%d · fps=%.1f", w, h, self.fps)
+        log.info("OBS Virtual Camera opened · %dx%d · fps=%.1f", w, h, self.fps)
 
     def close(self) -> None:
         if self._cap is not None:
@@ -132,12 +132,12 @@ class OBSCapture:
             self._cap = None
 
     def read_once(self) -> bytes:
-        """读一帧 · 转 PNG bytes · 和 adb_client.screencap 同格式。"""
+        """Reads one frame · converts to PNG bytes · same format as adb_client.screencap."""
         if self._cap is None:
             self.open()
         ok, bgr = self._cap.read()
         if not ok or bgr is None:
-            raise OBSCaptureError("cv2 read() 失败 · OBS 虚拟摄像头可能被关闭")
+            raise OBSCaptureError("cv2 read() failed · the OBS Virtual Camera may have been turned off")
         # BGR → RGB → PIL → PNG bytes
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(rgb)
@@ -146,7 +146,7 @@ class OBSCapture:
         return buf.getvalue()
 
     async def frames(self) -> AsyncIterator[bytes]:
-        """异步帧生成器 · 按 self.fps 节流。"""
+        """Async frame generator · throttled to self.fps."""
         if self._cap is None:
             self.open()
         while True:
@@ -154,13 +154,13 @@ class OBSCapture:
             try:
                 yield self.read_once()
             except OBSCaptureError as e:
-                log.warning("帧读取失败 · 2s 后重试: %s", e)
+                log.warning("frame read failed · retrying in 2s: %s", e)
                 await asyncio.sleep(2)
                 try:
                     self.close()
                     self.open()
                 except Exception as reopen_err:
-                    log.error("reopen 失败: %s", reopen_err)
+                    log.error("reopen failed: %s", reopen_err)
                     raise
                 continue
             elapsed = asyncio.get_event_loop().time() - start
@@ -176,33 +176,33 @@ class OBSCapture:
         self.close()
 ```
 
-### 2. 新增 `requirements-windows.txt`
+### 2. Add `requirements-windows.txt`
 
-创建 Windows 专用依赖文件：
+Create a Windows-specific dependency file:
 
 ```
 # requirements-windows.txt
-# Windows 原生 Python 专用 · 实时 coach pipeline 的数据源 + UI 会用到
-# 和 requirements.txt 一起 pip install · 不替换
+# Native Windows Python only · used by the real-time coach pipeline's data source + UI
+# pip install alongside requirements.txt · does not replace it
 
 -r requirements.txt
 pygrabber>=0.2.0     ; sys_platform == "win32"
-# opencv-python 已在主 requirements · 这里只加 Windows 特有的
+# opencv-python is already in the main requirements · this only adds the Windows-specific bits
 ```
 
 ### 3. CLI smoke test
 
-新增 `scripts/test_obs_capture.py`：
+Add `scripts/test_obs_capture.py`:
 
 ```python
-"""手动验证 OBS 虚拟摄像头接入。
+"""Manually verify the OBS Virtual Camera connection.
 
-前置：
-  1. OBS Studio 已启动
-  2. 在 OBS 里添加 "Window Capture" 或 "Game Capture" 抓 MuMu 窗口
-  3. 按 OBS 右下角 "Start Virtual Camera" 启动虚拟摄像头
+Prerequisites:
+  1. OBS Studio is running
+  2. Add a "Window Capture" or "Game Capture" in OBS to grab the MuMu window
+  3. Click "Start Virtual Camera" at the bottom right of OBS
 
-跑：
+Run:
   python scripts/test_obs_capture.py --out /tmp/obs_test.png
 """
 import argparse
@@ -216,7 +216,7 @@ from src.capture_obs import OBSCapture
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=Path("/tmp/obs_test.png"))
-    ap.add_argument("--count", type=int, default=3, help="抓几帧验证稳定性")
+    ap.add_argument("--count", type=int, default=3, help="how many frames to grab to check stability")
     ap.add_argument("--fps", type=float, default=1.0)
     args = ap.parse_args()
 
@@ -234,65 +234,65 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 4. README 更新（仅加一小段）
+### 4. README update (add a small section only)
 
-在 "运行时 · 默认本地推理" 段之后加：
+After the "Runtime · local inference by default" section, add:
 
 ```markdown
-### 实时 coach 模式 · 数据源
+### Real-time coach mode · data source
 
-实时模式要求 Windows 原生 Python（不在 WSL） · 前置：
+Real-time mode requires native Windows Python (not WSL) · prerequisites:
 
-1. 装 OBS Studio 并启动
-2. 添加 "Window Capture" 抓 MuMu 窗口
-3. OBS 右下 "Start Virtual Camera"
+1. Install OBS Studio and launch it
+2. Add a "Window Capture" to grab the MuMu window
+3. Click "Start Virtual Camera" at the bottom right of OBS
 4. `pip install -r requirements-windows.txt`
-5. `python scripts/test_obs_capture.py` 验证接入
+5. `python scripts/test_obs_capture.py` to verify the connection
 
-更详细的实时 coach 启动流程见后续 B2/B5 任务完成后的 README 更新。
+The fuller real-time coach startup flow is in the README update after the B2/B5 tasks are done.
 ```
 
 ---
 
-## 禁止做的事
+## What not to do
 
-- 不要接 Android 侧 / ADB · 这就是本任务的 raison d'être · 走回头路就是犯规
-- 不要加 FFmpeg / GStreamer 等重量级依赖 · `cv2 + pygrabber` 够
-- 不要改 `src/adb_client.py`（保留给后续 optional 路线）
-- 不要改感知层（`vlm_client` / `ocr_client` / `frame_monitor`）· 它们吃 PNG bytes · 你的输出对齐就行
-- 不要写重试无限循环 · 上面代码里 2s 重试一次是够了 · 死循环让 tick loop 去处理
-- 不要引入异步回调风格 · 就用 async iterator
-
----
-
-## 自验收清单
-
-- [ ] 在 Windows 原生 Python 环境（非 WSL）执行 `python scripts/test_obs_capture.py --count 3` 
-- [ ] 三张 PNG 都保存成功 · 分辨率 >= MuMu 画面实际分辨率
-- [ ] PNG 能被 PIL 打开 · `Image.open(path).size` 合理（横屏 > 1200×600）
-- [ ] `_discover_device` 返回的 index 对应 OBS 虚拟摄像头（debug log 打印设备列表确认）
-- [ ] OBS 关闭虚拟摄像头时 `read_once` 抛 OBSCaptureError · `frames()` 会重试
-- [ ] `git diff --stat` 只含：
-  - `src/capture_obs.py` (新)
-  - `scripts/test_obs_capture.py` (新)
-  - `requirements-windows.txt` (新)
-  - `README.md` (改 · 一小段)
-- [ ] grep anthropic/openai 在新文件里零命中
-
-## 完成后
-
-给用户 ≤ 150 字报告：
-- OBS Virtual Camera 在用户机器上的 device index · device name · 分辨率
-- 3 张测试帧文件大小
-- 有没有踩到 pygrabber 安装坑（用户之前 pip 在 fakeip 环境可能慢）
-- 给 B2 的 frame source 接口契约确认（`async def frames() -> AsyncIterator[bytes]`）
-
-不自动 git commit。
+- Do not touch the Android side / ADB · this is the task's raison d'être · backtracking is a foul
+- Do not add heavyweight deps like FFmpeg / GStreamer · `cv2 + pygrabber` is enough
+- Do not modify `src/adb_client.py` (kept for a later optional route)
+- Do not modify the perception layer (`vlm_client` / `ocr_client` / `frame_monitor`) · they consume PNG bytes · just align your output
+- Do not write an infinite retry loop · the 2s single retry above is enough · let the tick loop handle dead loops
+- Do not introduce an async-callback style · just use the async iterator
 
 ---
 
-## 参考
+## Self-acceptance checklist
 
-- OBS Virtual Camera 官方文档: https://obsproject.com/kb/virtual-camera-guide
-- pygrabber 仓库: https://github.com/andreaschiavinato/python_video_stab/tree/master/pygrabber
-- cv2.VideoCapture DSHOW 后端: 用 `cv2.CAP_DSHOW` 参数 · 比默认 MSMF 更兼容虚拟摄像头
+- [ ] In a native Windows Python environment (not WSL), run `python scripts/test_obs_capture.py --count 3`
+- [ ] All three PNGs save successfully · resolution >= the actual MuMu display resolution
+- [ ] PNGs open in PIL · `Image.open(path).size` is reasonable (landscape > 1200×600)
+- [ ] The index returned by `_discover_device` corresponds to the OBS Virtual Camera (confirm via the debug-log device list)
+- [ ] When OBS turns off the virtual camera, `read_once` raises OBSCaptureError · `frames()` retries
+- [ ] `git diff --stat` only contains:
+  - `src/capture_obs.py` (new)
+  - `scripts/test_obs_capture.py` (new)
+  - `requirements-windows.txt` (new)
+  - `README.md` (changed · one small section)
+- [ ] grep for anthropic/openai in the new files returns zero hits
+
+## After completion
+
+Give the user a ≤ 150-word report:
+- The OBS Virtual Camera's device index · device name · resolution on the user's machine
+- File sizes of the 3 test frames
+- Whether you hit any pygrabber install snags (the user's earlier pip in a fakeip environment may be slow)
+- Confirm the frame-source interface contract for B2 (`async def frames() -> AsyncIterator[bytes]`)
+
+Do not git commit automatically.
+
+---
+
+## References
+
+- OBS Virtual Camera official docs: https://obsproject.com/kb/virtual-camera-guide
+- pygrabber repo: https://github.com/andreaschiavinato/python_video_stab/tree/master/pygrabber
+- cv2.VideoCapture DSHOW backend: pass `cv2.CAP_DSHOW` · more compatible with virtual cameras than the default MSMF

@@ -1,10 +1,14 @@
-"""HTML 报告渲染器 —— MatchReport → self-contained HTML 字符串。
+"""HTML report renderer — MatchReport -> self-contained HTML string.
 
-视觉风格延续 pitch/index.html 和 pitch/roadmap.html：
-- 深色背景 + 金色 accent + 朱砂 / 青瓷 / 赭石语义色
-- 宋体衬线标题
-- 半透明背景 + 噪点纹理（SVG data-uri）
-- 响应式（手机切单列）
+The visual style continues pitch/index.html and pitch/roadmap.html:
+- Dark background + gold accent + vermilion / celadon / ochre semantic colors
+- Songti serif headings
+- Translucent background + noise texture (SVG data-uri)
+- Responsive (single column on mobile)
+
+NOTE: the Chinese strings in the HTML template below (title, brand seal, meta keys, section
+headings, the empty-rounds message) and the _GRADE_CSS keys/values are the Chinese replay
+report this product emits · kept Chinese.
 """
 from __future__ import annotations
 
@@ -19,7 +23,7 @@ from .schema import MatchReport
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# CSS（完整内联 · 延续 pitch/index.html 的 CSS 变量语言）
+# CSS (fully inlined · continues the CSS-variable language of pitch/index.html)
 # ──────────────────────────────────────────────────────────────────────────────
 
 _CSS = """\
@@ -287,8 +291,10 @@ body::after{
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# CSS class 映射（grade → CSS class · 用 Unicode 转义让 CSS 匹配中文）
+# Grade -> CSS-class mapping (the Chinese grade values key the CSS classes that match them)
 # ──────────────────────────────────────────────────────────────────────────────
+# The keys/values stay Chinese — they map rr.grade (优/可/差) to the .grade-优/.grade-可/.grade-差
+# selectors in the CSS above · changing them would break the style match.
 _GRADE_CSS = {
     "优": "grade-优",
     "可": "grade-可",
@@ -297,14 +303,17 @@ _GRADE_CSS = {
 
 
 def _e(text: str) -> str:
-    """HTML 实体转义。"""
+    """HTML entity escaping."""
     return html.escape(str(text), quote=False)
 
 
 def render_report_html(report: MatchReport) -> str:
-    """MatchReport → 完整 self-contained HTML 字符串（CSS 内联）。"""
+    """MatchReport -> complete self-contained HTML string (CSS inlined).
 
-    # 格式化时长
+    The Chinese strings written into the HTML below are the report content the product emits.
+    """
+
+    # Format the duration
     m, s = divmod(report.duration_s, 60)
     h, m = divmod(m, 60)
     if h:
@@ -312,10 +321,10 @@ def render_report_html(report: MatchReport) -> str:
     else:
         duration_str = f"{m}m {s:02d}s"
 
-    # 生成时间
+    # Generation time
     gen_time = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    # Hero 区 meta 行
+    # Hero-area meta rows (Chinese labels are report content · kept Chinese)
     meta_rows_html = ""
     meta_rows_html += _meta_row("对局编号", report.match_id)
     if report.rank_tier:
@@ -349,7 +358,7 @@ def render_report_html(report: MatchReport) -> str:
         rounds_html = '<div class="rounds-empty">（无关键回合 · LLM 未识别出转折点）</div>'
 
     # Summary
-    # 把换行变成段落
+    # Turn newlines into paragraphs
     summary_paras = [p.strip() for p in report.summary.split("\n") if p.strip()]
     if not summary_paras:
         summary_paras = [report.summary]
@@ -357,7 +366,7 @@ def render_report_html(report: MatchReport) -> str:
         f'<p class="summary-text">{_e(p)}</p>' for p in summary_paras
     )
 
-    # 报告编号印章文字（从 match_id 末尾取一小节）
+    # Report-number seal text (take a small slice from the end of match_id)
     stamp_text = report.match_id[-4:] if len(report.match_id) >= 4 else report.match_id
 
     html_out = f"""\

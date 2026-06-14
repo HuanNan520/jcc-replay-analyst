@@ -1,24 +1,24 @@
 # sample_frames
 
-一局完整 S16 对局的关键帧摘录（12 张 · 覆盖选秀→选增强→战斗→结算全流程）。
+Key-frame excerpt from one complete S16 match (12 frames · covering the full flow: carousel → augment → combat → settlement).
 
-供 `scripts/analyze.py --frames examples/sample_frames/` 作为 e2e smoke test。
+Used by `scripts/analyze.py --frames examples/sample_frames/` as an e2e smoke test.
 
-帧按文件名顺序送入 `frame_monitor.observe` · 首帧建 baseline · 后续帧触发事件抽取。
+Frames are fed into `frame_monitor.observe` in filename order · the first frame builds the baseline · later frames trigger event extraction.
 
-| 帧 | 阶段 | 游戏回合 |
+| Frame | Phase | Game round |
 | --- | --- | --- |
-| frame_001_pick | 选秀/开局 carousel | 1-1 |
-| frame_002_pve | 小兵 PVE | 1-4 海滩 |
-| frame_003_positioning | 备战/摆位 | 2-x |
-| frame_004_pve | 小兵 PVE | 2-5 |
-| frame_005_augment | 选增强 | 3-2 |
-| frame_006_pvp | 玩家对战 | 3-4 |
-| frame_007_pvp | 玩家对战 | 4-1 |
-| frame_008_item | 装备转盘 | 4-4 |
-| frame_009_positioning | 备战/摆位 | 5-1 |
-| frame_010_pvp | 玩家对战 | 5-4 |
-| frame_011_pvp | 玩家对战 | 6-1 |
-| frame_012_end | 结算 | 第二名 |
+| frame_001_pick | Carousel / opening | 1-1 |
+| frame_002_pve | Minion PVE | 1-4 beach |
+| frame_003_positioning | Prep / positioning | 2-x |
+| frame_004_pve | Minion PVE | 2-5 |
+| frame_005_augment | Augment pick | 3-2 |
+| frame_006_pvp | Player combat | 3-4 |
+| frame_007_pvp | Player combat | 4-1 |
+| frame_008_item | Item carousel | 4-4 |
+| frame_009_positioning | Prep / positioning | 5-1 |
+| frame_010_pvp | Player combat | 5-4 |
+| frame_011_pvp | Player combat | 6-1 |
+| frame_012_end | Settlement | 2nd place |
 
-源帧来自 `MuMu-20260421-08xxxx` 系列（2560×1456 原图）· 缩至 1280×720、JPEG q=85 压缩以控制体积（总计 ~2.2 MB）。
+Source frames come from the `MuMu-20260421-08xxxx` series (2560×1456 originals) · downscaled to 1280×720 and JPEG q=85 compressed to keep the size down (~2.2 MB total).

@@ -1,11 +1,11 @@
-"""手动验证 OBS 虚拟摄像头接入。
+"""Manually verify the OBS Virtual Camera connection.
 
-前置：
-  1. OBS Studio 已启动
-  2. 在 OBS 里添加 "Window Capture" 或 "Game Capture" 抓 MuMu 窗口
-  3. 按 OBS 右下角 "Start Virtual Camera" 启动虚拟摄像头
+Prerequisites:
+  1. OBS Studio is running
+  2. add a "Window Capture" or "Game Capture" source in OBS to capture the MuMu window
+  3. click "Start Virtual Camera" at the bottom-right of OBS to start the virtual camera
 
-跑：
+Run:
   python scripts/test_obs_capture.py --out /tmp/obs_test.png
 """
 import argparse
@@ -19,7 +19,7 @@ from src.capture_obs import OBSCapture
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=Path("/tmp/obs_test.png"))
-    ap.add_argument("--count", type=int, default=3, help="抓几帧验证稳定性")
+    ap.add_argument("--count", type=int, default=3, help="number of frames to grab to verify stability")
     ap.add_argument("--fps", type=float, default=1.0)
     args = ap.parse_args()
 

@@ -1,8 +1,8 @@
-"""PaddleOCR 封装 · 读屏幕中文文字（HP / 金币 / 等级数字 · 英雄名 · UI 气泡）。
+"""PaddleOCR wrapper · reads on-screen Chinese text (HP / gold / level numbers · champion names · UI bubbles).
 
-为什么不让 VLM 直接读：
-  实测 Qwen2.5-VL-7B 读 HP 经常错 1-2 · 对分析精度致命。
-  专精 OCR 在中文数字/短文本上稳定 99%+ · 让 VLM 只做语义识别。
+Why not let the VLM read these directly:
+  in testing, Qwen2.5-VL-7B often misreads HP by 1-2 · which is fatal for analysis accuracy.
+  A dedicated OCR is 99%+ reliable on Chinese numbers / short text · so the VLM only does semantic recognition.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Optional
 
-# ⚠ 关闭 onednn · paddle 3.x PIR + mkldnn 有 ConvertPirAttribute 未实现 bug
+# NOTE: disable onednn · paddle 3.x PIR + mkldnn has an unimplemented ConvertPirAttribute bug
 os.environ.setdefault("FLAGS_use_mkldnn", "0")
 os.environ.setdefault("FLAGS_enable_pir_in_executor", "0")
 
@@ -20,7 +20,7 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-_OCR = None  # 单例 · PaddleOCR 初始化耗时
+_OCR = None  # singleton · PaddleOCR is slow to initialize
 
 
 def _get_ocr():
@@ -29,7 +29,7 @@ def _get_ocr():
         return _OCR
     from paddleocr import PaddleOCR  # lazy import
 
-    # PaddleOCR 3.x / 2.x 多版本兼容兜底
+    # Fallback chain for cross-version compatibility (PaddleOCR 3.x / 2.x)
     kwargs_tries = [
         dict(use_textline_orientation=False, lang="ch", device="cpu",
              enable_mkldnn=False, cpu_threads=4),
@@ -52,7 +52,7 @@ def _get_ocr():
 
 
 def recognize(image_bytes: bytes) -> list[dict]:
-    """识别图中所有中文文字。返回 [{text, bbox: [x1,y1,x2,y2], conf}, ...]"""
+    """Recognize all Chinese text in the image. Returns [{text, bbox: [x1,y1,x2,y2], conf}, ...]"""
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         arr = np.array(img)
@@ -78,7 +78,7 @@ def recognize(image_bytes: bytes) -> list[dict]:
 
     try:
         item = res[0] if isinstance(res, list) else res
-        # PaddleOCR 3.x: OCRResult 是 dict-like
+        # PaddleOCR 3.x: OCRResult is dict-like
         try:
             d = dict(item)
         except Exception:
@@ -106,7 +106,7 @@ def recognize(image_bytes: bytes) -> list[dict]:
                     "conf": float(s),
                 })
         else:
-            # PaddleOCR 2.x 兼容
+            # PaddleOCR 2.x compatibility
             lines = item if isinstance(item, list) else res
             for line in lines:
                 if not (isinstance(line, list) and len(line) >= 2):
@@ -131,8 +131,8 @@ def recognize(image_bytes: bytes) -> list[dict]:
 
 
 def find_number_near(image_bytes: bytes, anchor_keyword: str, max_dist: int = 200) -> Optional[int]:
-    """在含 `anchor_keyword` 的文字附近找最近的数字。
-    用于读 HP / 金币 / 等级 等 —— anchor 是标签文字 · 数字是其值。"""
+    """Find the nearest number close to text containing `anchor_keyword`.
+    Used to read HP / gold / level etc. — the anchor is the label text · the number is its value."""
     import re
     texts = recognize(image_bytes)
     if not texts:
@@ -163,6 +163,7 @@ def find_number_near(image_bytes: bytes, anchor_keyword: str, max_dist: int = 20
 def _is_mostly_chinese(s: str) -> bool:
     if not s:
         return False
+    # CJK range bounds — these characters are functional, not display text.
     cn = sum(1 for c in s if "一" <= c <= "鿿")
     return cn >= len(s.strip()) * 0.5
 
@@ -170,9 +171,9 @@ def _is_mostly_chinese(s: str) -> bool:
 def find_long_text_bubble(
     image_bytes: bytes, screen_h: int = 1456, min_chars: int = 8, min_width_px: int = 300,
 ) -> tuple[Optional[str], Optional[tuple[int, int]]]:
-    """启发式找屏幕下半部的"长中文气泡"（解说/提示/对话）。
+    """Heuristically find a "long Chinese bubble" in the lower half of the screen (commentary / tip / dialogue).
 
-    返回 (合并后的气泡文字, 首块中心点 (x, y))。
+    Returns (merged bubble text, center point (x, y) of the first block).
     """
     texts = recognize(image_bytes)
     if not texts:

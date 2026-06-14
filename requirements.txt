@@ -1,28 +1,28 @@
-# 核心
+# Core
 pydantic>=2.5
 httpx>=0.27
 pillow>=10.0
 numpy>=1.26
 
-# OCR · 中文数字识别（CPU 版够用 · GPU 版可选装 paddlepaddle-gpu）
+# OCR · Chinese digit recognition (CPU build is enough · GPU build paddlepaddle-gpu is optional)
 paddlepaddle>=2.6
 paddleocr>=3.0
 
-# CV · UI 元素检测（arrow_finder 需要）
+# CV · UI element detection (needed by arrow_finder)
 opencv-python>=4.9
 
-# 可选 · 如果直接从 mp4 录屏抽帧需要系统装 ffmpeg
-# 可选 · 接 VLM 本地推理需 vllm · 请按 https://docs.vllm.ai/ 单独安装
+# Optional · extracting frames directly from an mp4 recording requires ffmpeg on the system
+# Optional · running a local VLM needs vllm · install it separately per https://docs.vllm.ai/
 
-# S16 版本知识库 · 来自本地 jcc-daida 项目（无 setup.py · 按文件路径加载）
-# 用法：设环境变量 JCC_DAIDA_PATH=/path/to/jcc-daida · 或保持默认让 src/knowledge.py
-# 走硬编码开发路径。未找到时 Analyzer 静默降级 · 不阻塞 pipeline。
-# jcc-daida 运行时依赖：
+# S16 patch knowledge base · from the local jcc-daida project (no setup.py · loaded by file path)
+# Usage: set the env var JCC_DAIDA_PATH=/path/to/jcc-daida · or keep the default and let src/knowledge.py
+# use the hardcoded dev path. When not found, the Analyzer degrades silently · does not block the pipeline.
+# jcc-daida runtime dependency:
 pyyaml>=6.0
 
-# 实时 coach · 建议广播服务
+# Real-time coach · advice broadcast service
 fastapi>=0.115
 uvicorn[standard]>=0.32
 
-# 测试
+# Testing
 pytest>=8.0

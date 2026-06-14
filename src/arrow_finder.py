@@ -1,9 +1,9 @@
-"""OpenCV 找教程亮色箭头中心。
+"""OpenCV: locate the center of the bright tutorial guide arrow.
 
-金铲铲之战新手教程引导箭头特点：
-- 颜色：亮黄 / 亮绿 / 亮白 大面积色块（箭头 + 高亮圈）
-- 大小：一般 > 500 像素 · 不超过屏幕 1/4
-- 位置：随机但通常在 UI 元素附近
+Characteristics of the TFT (jkchess) new-player tutorial guide arrow:
+- Color: bright yellow / bright green / bright white, large solid blocks (arrow + highlight ring)
+- Size: usually > 500 pixels · no more than 1/4 of the screen
+- Position: random, but usually near a UI element
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 
 def find_arrow(image_bytes: bytes) -> Optional[tuple[int, int]]:
-    """找教程引导亮色箭头中心 (x, y) · 失败返回 None。"""
+    """Find the center (x, y) of the bright tutorial guide arrow · returns None on failure."""
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         arr = np.array(img)
@@ -31,20 +31,20 @@ def find_arrow(image_bytes: bytes) -> Optional[tuple[int, int]]:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     h, w = bgr.shape[:2]
 
-    # 亮黄 · 教程箭头最常见色
+    # Bright yellow · the most common tutorial-arrow color
     yellow_mask = cv2.inRange(hsv, np.array([20, 140, 180]), np.array([35, 255, 255]))
-    # 亮绿
+    # Bright green
     green_mask = cv2.inRange(hsv, np.array([40, 140, 180]), np.array([80, 255, 255]))
-    # 亮白（高亮圈）· 低饱和度 + 高亮度
+    # Bright white (highlight ring) · low saturation + high brightness
     white_mask = cv2.inRange(hsv, np.array([0, 0, 220]), np.array([180, 40, 255]))
 
     mask = cv2.bitwise_or(cv2.bitwise_or(yellow_mask, green_mask), white_mask)
 
-    # 形态学开运算去细小噪点
+    # Morphological opening to remove tiny noise
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-    # 连通域 · 过滤大小
+    # Connected components · filter by size
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None
@@ -55,7 +55,7 @@ def find_arrow(image_bytes: bytes) -> Optional[tuple[int, int]]:
     if not valid:
         return None
 
-    # 取最大的连通块（箭头通常最大）
+    # Take the largest connected block (the arrow is usually the biggest)
     c = max(valid, key=cv2.contourArea)
     M = cv2.moments(c)
     if M["m00"] == 0:
@@ -66,7 +66,7 @@ def find_arrow(image_bytes: bytes) -> Optional[tuple[int, int]]:
 
 
 def find_all_highlights(image_bytes: bytes, min_area: int = 500) -> list[dict]:
-    """找所有亮色候选 · 调试用。返回 [{center, area, color}, ...]"""
+    """Find all bright-color candidates · for debugging. Returns [{center, area, color}, ...]"""
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         arr = np.array(img)

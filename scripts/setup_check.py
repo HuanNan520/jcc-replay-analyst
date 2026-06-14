@@ -1,6 +1,6 @@
-"""环境健康检查 · 跑一遍看实时 coach 所有前置是否就绪。
+"""Environment health check · run once to see whether all real-time coach prerequisites are ready.
 
-用法: python3 scripts/setup_check.py
+Usage: python3 scripts/setup_check.py
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from urllib import request as urlrequest
 from urllib.error import URLError
 
 # ---------------------------------------------------------------------------
-# 状态枚举 & 结果结构
+# status enum & result structures
 # ---------------------------------------------------------------------------
 
 OK = "ok"
@@ -74,11 +74,11 @@ class CheckGroup:
 
 
 # ---------------------------------------------------------------------------
-# 工具函数
+# utility functions
 # ---------------------------------------------------------------------------
 
 def _try_import(module: str) -> Optional[str]:
-    """尝试 import 模块，返回版本字符串 or None。"""
+    """Try to import a module; return the version string or None."""
     try:
         mod = importlib.import_module(module)
     except Exception:
@@ -102,7 +102,7 @@ def _pkg_version(dist_name: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# 各检查项
+# individual checks
 # ---------------------------------------------------------------------------
 
 def check_python() -> CheckResult:
@@ -110,7 +110,7 @@ def check_python() -> CheckResult:
     ver_str = f"{vi.major}.{vi.minor}.{vi.micro}"
     if (vi.major, vi.minor) >= (3, 10):
         return CheckResult(OK, f"Python {ver_str}")
-    return CheckResult(FAIL, f"Python {ver_str}", "需要 >= 3.10")
+    return CheckResult(FAIL, f"Python {ver_str}", "requires >= 3.10")
 
 
 def check_import_core(module: str, dist_name: str = "", display: str = "") -> CheckResult:
@@ -121,7 +121,7 @@ def check_import_core(module: str, dist_name: str = "", display: str = "") -> Ch
         if dist_name:
             v = _pkg_version(dist_name)
     if v is None:
-        return CheckResult(FAIL, label, "未安装 (pip install required)")
+        return CheckResult(FAIL, label, "not installed (pip install required)")
     short = ".".join(v.split(".")[:2]) if "." in v else v
     return CheckResult(OK, f"{label} {short}")
 
@@ -132,7 +132,7 @@ def check_import_optional(module: str, dist_name: str = "", display: str = "") -
     if v is None and dist_name:
         v = _pkg_version(dist_name)
     if v is None:
-        return CheckResult(WARN, label, "未安装 (optional · 感知功能降级)")
+        return CheckResult(WARN, label, "not installed (optional · perception features degraded)")
     short = ".".join(v.split(".")[:2]) if "." in v else v
     return CheckResult(OK, f"{label} {short}")
 
@@ -143,26 +143,26 @@ def check_windows_only(module: str, display: str = "") -> CheckResult:
         return CheckResult(SKIP, label, f"Windows only · skipped on {sys.platform}")
     v = _try_import(module)
     if v is None:
-        return CheckResult(WARN, label, "未安装 (Windows 端需要)")
+        return CheckResult(WARN, label, "not installed (required on Windows)")
     short = ".".join(v.split(".")[:2]) if "." in v else v
     return CheckResult(OK, f"{label} {short}")
 
 
 def check_jcc_daida() -> CheckResult:
     env = os.environ.get("JCC_DAIDA_PATH")
-    default = Path("/mnt/c/Users/huannan/Downloads/带走/jcc-daida")
+    default = Path("/mnt/c/Users/you/Downloads/jcc-daida")
     if env:
         p = Path(env).expanduser()
         if (p / "client.py").exists():
             return CheckResult(OK, f"jcc-daida at {p}")
-        return CheckResult(FAIL, "jcc-daida", f"JCC_DAIDA_PATH={env} 但 client.py 不存在")
+        return CheckResult(FAIL, "jcc-daida", f"JCC_DAIDA_PATH={env} but client.py does not exist")
     if (default / "client.py").exists():
         return CheckResult(OK, f"jcc-daida at {default}")
-    return CheckResult(WARN, "jcc-daida", "路径未找到 · 知识库功能不可用 (设 JCC_DAIDA_PATH)")
+    return CheckResult(WARN, "jcc-daida", "path not found · knowledge features unavailable (set JCC_DAIDA_PATH)")
 
 
 def check_knowledge() -> CheckResult:
-    # 把项目 src 加入 sys.path 以便 import
+    # add the project src to sys.path so it can be imported
     src = Path(__file__).parent.parent / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
@@ -170,9 +170,9 @@ def check_knowledge() -> CheckResult:
         from knowledge import load_knowledge  # type: ignore
         kb = load_knowledge()
     except Exception as e:
-        return CheckResult(WARN, "load_knowledge()", f"调用失败 · {e}")
+        return CheckResult(WARN, "load_knowledge()", f"call failed · {e}")
     if kb is None:
-        return CheckResult(WARN, "load_knowledge()", "返回 None · jcc-daida 不可用")
+        return CheckResult(WARN, "load_knowledge()", "returned None · jcc-daida unavailable")
     n_heroes = len(kb.all_units)
     n_comps = len(kb.comps)
     return CheckResult(OK, "load_knowledge()", f"{n_heroes} heroes · {n_comps} comps")
@@ -182,14 +182,14 @@ def check_sample_frames() -> CheckResult:
     repo_root = Path(__file__).parent.parent
     sf = repo_root / "examples" / "sample_frames"
     if not sf.exists():
-        return CheckResult(FAIL, "examples/sample_frames/", "目录不存在")
+        return CheckResult(FAIL, "examples/sample_frames/", "directory does not exist")
     imgs = [
         f for f in sf.iterdir()
         if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp", ".webp")
     ]
     n = len(imgs)
     if n < 5:
-        return CheckResult(WARN, "examples/sample_frames/", f"只有 {n} 张图 (需要 >= 5)")
+        return CheckResult(WARN, "examples/sample_frames/", f"only {n} images (requires >= 5)")
     return CheckResult(OK, "examples/sample_frames/", f"{n} frames")
 
 
@@ -203,7 +203,7 @@ def check_vllm() -> CheckResult:
         models = [m.get("id", "?") for m in data.get("data", [])]
         if models:
             names = " / ".join(models[:3])
-            return CheckResult(OK, f"vLLM at localhost:8000", f"模型: {names}")
+            return CheckResult(OK, f"vLLM at localhost:8000", f"models: {names}")
         return CheckResult(OK, "vLLM at localhost:8000", "running (no models listed)")
     except (URLError, OSError):
         return CheckResult(WARN, "vLLM at localhost:8000", "connection refused (not running)")
@@ -220,14 +220,14 @@ def check_gpu() -> CheckResult:
             text=True,
         ).strip()
         if not out:
-            return CheckResult(WARN, "GPU", "nvidia-smi 无输出")
-        # 取第一行
+            return CheckResult(WARN, "GPU", "nvidia-smi produced no output")
+        # take the first line
         line = out.splitlines()[0]
         parts = [p.strip() for p in line.split(",")]
         if len(parts) >= 2:
             gpu_name = parts[0]
             mem_free_str = parts[1]  # e.g. "13200 MiB"
-            # 转 GB
+            # convert to GB
             try:
                 mib = float(mem_free_str.split()[0])
                 gb = mib / 1024
@@ -237,11 +237,11 @@ def check_gpu() -> CheckResult:
             return CheckResult(OK, f"GPU · {gpu_name}", mem_str)
         return CheckResult(OK, "GPU", out)
     except FileNotFoundError:
-        return CheckResult(WARN, "GPU", "nvidia-smi 未找到 (无 NVIDIA GPU 或未安装驱动)")
+        return CheckResult(WARN, "GPU", "nvidia-smi not found (no NVIDIA GPU or driver not installed)")
     except subprocess.TimeoutExpired:
-        return CheckResult(WARN, "GPU", "nvidia-smi 超时")
+        return CheckResult(WARN, "GPU", "nvidia-smi timed out")
     except subprocess.CalledProcessError as e:
-        return CheckResult(WARN, "GPU", f"nvidia-smi 失败 · {e}")
+        return CheckResult(WARN, "GPU", f"nvidia-smi failed · {e}")
 
 
 def check_workflow(name: str) -> CheckResult:
@@ -249,16 +249,16 @@ def check_workflow(name: str) -> CheckResult:
     p = repo_root / ".github" / "workflows" / name
     if p.exists():
         return CheckResult(OK, f".github/workflows/{name}")
-    return CheckResult(FAIL, f".github/workflows/{name}", "文件不存在")
+    return CheckResult(FAIL, f".github/workflows/{name}", "file does not exist")
 
 
 # ---------------------------------------------------------------------------
-# 主流程
+# main flow
 # ---------------------------------------------------------------------------
 
 def run_checks() -> int:
     today = date.today().isoformat()
-    print(f"[setup-check · {today}] jcc-replay-analyst 环境自检")
+    print(f"[setup-check · {today}] jcc-replay-analyst environment self-check")
 
     groups: list[CheckGroup] = []
 
@@ -309,11 +309,11 @@ def run_checks() -> int:
     g7.add(check_workflow("pages.yml"))
     groups.append(g7)
 
-    # 打印所有组
+    # print all groups
     for g in groups:
         g.print()
 
-    # 汇总
+    # summary
     all_results: list[CheckResult] = []
     for g in groups:
         all_results.extend(g.results)
@@ -340,7 +340,7 @@ def run_checks() -> int:
 
     print(f"  {' · '.join(parts)}")
 
-    # exit 1 只有 FAIL 才触发
+    # exit 1 is only triggered by a FAIL
     return 1 if n_fail > 0 else 0
 
 

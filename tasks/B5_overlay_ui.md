@@ -1,50 +1,50 @@
-# B5 · PyQt 桌面 overlay
+# B5 · PyQt desktop overlay
 
-**分配给**：Claude Opus 4.7（`claude-opus-4-7`）· 三合一工程（PyQt 框架 + Win32 窗口对齐 + WebSocket 订阅）· 且有 UI 设计感要求。
-**依赖**：B4（WebSocket 服务先跑起来）。
-**预期工时**：1 天（含视觉打磨）。
-**运行时**：**Windows 原生 Python**（WSL 跑 PyQt GUI 能跑但窗口对齐 MuMu 需要 Win32 API）。
-**新产品定位中的角色**：**玩家看得到的那一层** —— 产品门面 · 作品集 demo 视频的主角。
+**Assigned to**: Claude Opus 4.7 (`claude-opus-4-7`) · three-in-one engineering (PyQt framework + Win32 window alignment + WebSocket subscription) · plus a UI-design-sense requirement.
+**Dependencies**: B4 (the WebSocket service must be running first).
+**Estimated effort**: 1 day (including visual polish).
+**Runtime**: **native Windows Python** (WSL can run a PyQt GUI but aligning the window to MuMu needs the Win32 API).
+**Role in the new product positioning**: **the layer the player actually sees** — the product's face · the star of the portfolio demo video.
 
 ---
 
-## 你是谁
+## Who you are
 
-你是被派到 `HuanNan520/jcc-replay-analyst` 执行 B5 的 Claude Opus 4.7。
-B4 已经 merge · 你订阅它的 WebSocket 拿 advice 流。你的任务：**写一个半透明悬浮窗 · 覆盖在 MuMu 模拟器窗口上方 · 把 advice 展示给玩家**。
+You are the Claude Opus 4.7 dispatched to `HuanNan520/jcc-replay-analyst` to execute B5.
+B4 is already merged · you subscribe to its WebSocket to get the advice stream. Your task: **write a translucent floating window · overlaid above the MuMu emulator window · that shows the advice to the player**.
 
-这是产品的视觉门面 —— 演示视频第一眼看到的就是你写的 overlay · 视觉质量直接影响作品集效果。
+This is the product's visual face — the overlay you write is the first thing seen in the demo video · its visual quality directly affects the portfolio impression.
 
-## 目标视觉
+## Target visual
 
 ```
-┌─────────────────────── MuMu 游戏窗口 ──────────────────────────────┐
+┌─────────────────────── MuMu game window ──────────────────────────┐
 │                                                                     │
-│   [游戏画面]                                     ┌────────────┐     │
-│                                                  │ ★ 选增强    │     │
-│                                                  │ 选第 1 个   │     │
-│                                                  │ 法师之力     │     │
-│                                                  │ 契合度 88%  │     │
-│                                                  │ 推荐理由... │     │
+│   [game screen]                                  ┌────────────┐     │
+│                                                  │ ★ Augment  │     │
+│                                                  │ Pick #1    │     │
+│                                                  │ Sorcerer Crest │ │
+│                                                  │ Fit 88%    │     │
+│                                                  │ Reasoning..│     │
 │                                                  └────────────┘     │
-│                                                  （300×180 半透明  │
-│                                                   卡片 · 金色边框 · │
-│                                                   淡入淡出）         │
+│                                                  (300×180 translucent│
+│                                                   card · gold border·│
+│                                                   fade in/out)        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-关键特性：
-- **Frameless + 置顶 + 半透明背景**
-- **点击穿透**（鼠标事件不被 overlay 拦截 · 玩家照常操作游戏）
-- **跟随 MuMu 窗口移动**（Win32 FindWindow + GetWindowRect · poll 每 500ms）
-- **金色边框 + 宋体标题 + 无衬线正文**（延续项目视觉语言）
-- **淡入淡出**（advice 来临 fade-in · 8 秒后 fade-out · 或被新 advice 替换）
+Key features:
+- **Frameless + always-on-top + translucent background**
+- **Click-through** (mouse events aren't intercepted by the overlay · the player operates the game normally)
+- **Follows the MuMu window as it moves** (Win32 FindWindow + GetWindowRect · poll every 500ms)
+- **Gold border + Song-style title + sans-serif body** (continuing the project's visual language)
+- **Fade in/out** (fade-in when advice arrives · fade-out after 8 seconds · or replaced by new advice)
 
 ---
 
-## 具体要做
+## What to do
 
-### 1. 新增 `src/overlay_ui.py`
+### 1. Add `src/overlay_ui.py`
 
 ```python
 from __future__ import annotations
@@ -96,7 +96,10 @@ class WindowRect:
 
 
 def find_mumu_rect(title_contains: list[str] = ("MuMu", "模拟器")) -> Optional[WindowRect]:
-    """Windows 原生 · 找 MuMu 窗口坐标。WSL / Linux 返回 None。"""
+    """Native Windows · finds the MuMu window coordinates. Returns None on WSL / Linux.
+
+    NOTE: "模拟器" (emulator) is the actual Chinese window-title substring matched · kept as a functional matcher.
+    """
     if user32 is None:
         return None
 
@@ -121,16 +124,16 @@ def find_mumu_rect(title_contains: list[str] = ("MuMu", "模拟器")) -> Optiona
     user32.EnumWindows(_enum, 0)
     if not found:
         return None
-    # 取面积最大的（主窗口）
+    # take the largest by area (the main window)
     return max(found, key=lambda r: r.width * r.height)
 
 
-# ==================== WebSocket client (qasync-free 版本) ====================
+# ==================== WebSocket client (qasync-free version) ====================
 
 class AdviceSubscriber(QObject):
-    """后台线程跑 websockets · emit Qt signal 到主线程。"""
+    """Runs websockets on a background thread · emits a Qt signal to the main thread."""
 
-    advice_received = pyqtSignal(dict)   # 带 payload dict
+    advice_received = pyqtSignal(dict)   # carries the payload dict
     connection_state = pyqtSignal(str)   # "connected" / "disconnected" / "error"
 
     def __init__(self, ws_url: str):
@@ -156,7 +159,7 @@ class AdviceSubscriber(QObject):
         try:
             import websockets
         except ImportError:
-            log.error("websockets 未安装 · pip install websockets")
+            log.error("websockets not installed · pip install websockets")
             self.connection_state.emit("error")
             return
 
@@ -164,7 +167,7 @@ class AdviceSubscriber(QObject):
             try:
                 async with websockets.connect(self.ws_url) as ws:
                     self.connection_state.emit("connected")
-                    log.info("WS 已连接 · %s", self.ws_url)
+                    log.info("WS connected · %s", self.ws_url)
                     async for raw in ws:
                         try:
                             msg = json.loads(raw)
@@ -173,12 +176,13 @@ class AdviceSubscriber(QObject):
                         if msg.get("type") in ("advice", "history"):
                             self.advice_received.emit(msg["payload"])
             except Exception as e:
-                log.warning("WS 断线 · 5s 后重连 · %s", e)
+                log.warning("WS disconnected · reconnecting in 5s · %s", e)
                 self.connection_state.emit("disconnected")
                 await asyncio.sleep(5)
 
 
 # ==================== Advice Card Widget ====================
+# NOTE: the labels below are shown in the overlay above a China-server game · kept as Chinese UI text.
 
 KIND_DISPLAY = {
     "augment": ("★ 选增强", "#e6c17a"),
@@ -230,7 +234,7 @@ class AdviceCard(QWidget):
         layout.addWidget(self._reason_label, 1)
         layout.addWidget(self._conf_label)
 
-        # 动画
+        # animations
         self._fade_in = QPropertyAnimation(self._opacity, b"opacity")
         self._fade_in.setDuration(400)
         self._fade_in.setStartValue(0.0)
@@ -273,17 +277,17 @@ class AdviceCard(QWidget):
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # 半透明深色底
+        # translucent dark base
         bg = QLinearGradient(0, 0, 0, self.height())
         bg.setColorAt(0, QColor(19, 17, 28, 235))
         bg.setColorAt(1, QColor(11, 9, 18, 235))
         p.fillRect(self.rect(), QBrush(bg))
-        # 金色边框
+        # gold border
         pen = QPen(self._accent)
         pen.setWidth(1)
         p.setPen(pen)
         p.drawRect(self.rect().adjusted(0, 0, -1, -1))
-        # 顶部 accent 短线
+        # top accent short line
         p.fillRect(QRect(0, 0, 60, 2), self._accent)
 
 
@@ -314,7 +318,7 @@ class OverlayWindow(QMainWindow):
         central.setStyleSheet("background: transparent;")
         self.setCentralWidget(central)
         self._card = AdviceCard(central)
-        # 默认放右上角
+        # default to the top-right corner
         self._card.move(central.width() - 340, 20)
 
     def _setup_subscriber(self, ws_url: str):
@@ -339,12 +343,12 @@ class OverlayWindow(QMainWindow):
     def _align_to_mumu(self):
         rect = find_mumu_rect()
         if rect is None:
-            # MuMu 没找到 · 贴右上角屏幕
+            # MuMu not found · dock to the top-right of the screen
             screen = QApplication.primaryScreen().geometry()
             self.setGeometry(screen.width() - 360, 40, 360, 220)
             self._card.move(20, 20)
             return
-        # 贴到 MuMu 右上内部
+        # dock to the inside top-right of MuMu
         self.setGeometry(rect.left, rect.top, rect.width, rect.height)
         card_x = rect.width - self._card.width() - 24
         card_y = 20
@@ -356,7 +360,7 @@ class OverlayWindow(QMainWindow):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ws-url", default="ws://localhost:8765/ws/advice")
-    ap.add_argument("--no-click-through", action="store_true", help="overlay 可接收鼠标（便于调试）")
+    ap.add_argument("--no-click-through", action="store_true", help="let the overlay receive the mouse (for debugging)")
     ap.add_argument("--log-level", default="INFO")
     args = ap.parse_args()
 
@@ -375,25 +379,25 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. 更新 `requirements-windows.txt`
+### 2. Update `requirements-windows.txt`
 
 ```
 PyQt6>=6.7
 websockets>=12.0
 ```
 
-（不加到主 requirements.txt · 因为 PyQt6 在 Linux headless 下装得慢没必要）
+(Not added to the main requirements.txt · because PyQt6 installs slowly under Linux headless for no benefit)
 
-### 3. 单元测试 `tests/test_overlay_headless.py`
+### 3. Unit test `tests/test_overlay_headless.py`
 
-PyQt 不好在 headless CI 测 · 只测纯函数：
+PyQt is hard to test in headless CI · so test pure functions only:
 
 ```python
 import pytest
 
 
 def test_find_mumu_rect_on_linux_returns_none():
-    """WSL / Linux 下 user32 不可用 · 应优雅返回 None。"""
+    """On WSL / Linux user32 is unavailable · should return None gracefully."""
     from src.overlay_ui import find_mumu_rect, user32
     if user32 is not None:
         pytest.skip("windows only")
@@ -415,107 +419,107 @@ def test_windowrect_width_height():
     assert r.height == 500
 ```
 
-CI 里这个文件在 Linux 可以跑（user32 is None · test_find_mumu_rect_on_linux 只断言 None），但 PyQt6 import 要不装就 import 时跳过。用 `pytest.importorskip("PyQt6", reason="Windows UI")` 在文件顶部。
+This file can run on Linux in CI (user32 is None · test_find_mumu_rect_on_linux only asserts None), but the PyQt6 import should skip at import time if not installed. Use `pytest.importorskip("PyQt6", reason="Windows UI")` at the top of the file.
 
-**更好**：在 `tests/test_overlay_headless.py` 顶部：
+**Better**: at the top of `tests/test_overlay_headless.py`:
 ```python
 import pytest
 pytest.importorskip("PyQt6", reason="Windows UI only")
 ```
 
-### 4. 更新 `.github/workflows/ci.yml`
+### 4. Update `.github/workflows/ci.yml`
 
-在 pip install 那步里显式跳过 PyQt6（别被 requirements 间接拖进来）：
+In the pip install step, explicitly skip PyQt6 (don't let requirements drag it in indirectly):
 
 ```yaml
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install pydantic httpx pillow numpy pytest fastapi uvicorn websockets
-          # PyQt6 Windows-only · CI 不装
+          # PyQt6 is Windows-only · not installed in CI
       - name: Run tests
         run: |
           pytest tests/ -v --ignore=tests/test_overlay_headless.py
 ```
 
-或者保留 overlay 测试但依赖 pytest.importorskip 自动跳过 · 都行。选一个。
+Or keep the overlay test but rely on pytest.importorskip to skip it automatically · either works. Pick one.
 
-### 5. README 最后一段实时 coach 启动完整流程
+### 5. Final README section: the full real-time coach startup flow
 
 ```markdown
-### 实时 coach 模式 · 完整启动（4 个终端）
+### Real-time coach mode · full startup (4 terminals)
 
 ```powershell
-# 终端 1 · WSL · 启 vLLM
+# Terminal 1 · WSL · start vLLM
 source ~/jcc-replay-analyst/.venv/bin/activate
 python -m vllm.entrypoints.openai.api_server --model /path/to/Qwen3-VL-4B-FP8 --port 8000
 
-# 终端 2 · Windows 或 WSL · 启 advice server
+# Terminal 2 · Windows or WSL · start the advice server
 python -m src.advice_server --port 8765
 
-# 终端 3 · Windows 原生 Python · 起 OBS virtual cam + live tick（需前置 OBS Start Virtual Camera）
+# Terminal 3 · native Windows Python · start OBS virtual cam + live tick (requires OBS Start Virtual Camera first)
 python -m src.live_tick --fps 2 --advice-server http://localhost:8765
 
-# 终端 4 · Windows 原生 Python · 起 overlay
+# Terminal 4 · native Windows Python · start the overlay
 python -m src.overlay_ui --ws-url ws://localhost:8765/ws/advice
 ```
 
-玩金铲铲 · overlay 会自动浮在 MuMu 窗口上方 · 决策点触发就弹建议。
+Play TFT · the overlay automatically floats above the MuMu window · and pops advice when a decision point triggers.
 ```
 
 ---
 
-## 禁止做的事
+## What not to do
 
-- 不要引入 Electron / Tauri / web UI 框架 · 就 PyQt6
-- 不要自己写 WebSocket reconnect 指数退避 —— 5s 固定间隔够
-- 不要加配置文件 / YAML · CLI 参数够
-- 不要做"overlay 内的配置面板" · v1 只管展示
-- 不要处理多 MuMu 实例 · 取面积最大的那个
-- 不要做截屏 / 录制功能 · 跟实时 coach 无关
-- 不要改 B4 `src/advice_server.py` —— 有新需求告诉用户别改 server
-- 不要改 `src/schema.py` · 其它 src/ 文件
-
----
-
-## 自验收清单
-
-Linux/WSL 侧（CI 能跑的）：
-- [ ] `python -c "from src.overlay_ui import find_mumu_rect, WindowRect, KIND_DISPLAY"` 无错
-- [ ] `pytest tests/test_overlay_headless.py -v` 全绿（Linux 下 find_mumu_rect 测试应得 None）
-- [ ] `pytest tests/ -v --ignore=tests/test_overlay_headless.py` 原有 40+ 测试零回归
-
-Windows 侧（用户机器实测 · 你至少要给用户贴命令让他验）：
-- [ ] `pip install -r requirements-windows.txt` 无错
-- [ ] advice_server 跑着时 · `python -m src.overlay_ui` 能启动 · 窗口透明看到桌面
-- [ ] 开着 MuMu · overlay 窗口**自动**贴到 MuMu 上（坐标对齐）
-- [ ] 用 `curl -X POST http://localhost:8765/advice -d '{...一个合法 advice...}'` 手动推 · overlay 右上角**淡入**显示卡片 · 8 秒淡出
-- [ ] overlay 不拦截鼠标（你在 overlay 上点击 · 鼠标事件到 MuMu 窗口）—— 如果用 `--no-click-through` 调试模式可以点到 overlay 本身
-- [ ] 关掉 advice_server · overlay 不崩 · log 出 "WS 断线 · 5s 后重连"
-
-`git diff --stat` 只含：
-- `src/overlay_ui.py` (新)
-- `tests/test_overlay_headless.py` (新)
-- `requirements-windows.txt` (追加)
-- `.github/workflows/ci.yml` (可选改 · 显式跳过 PyQt6)
-- `README.md` (加一段)
-
-## 完成后
-
-给用户 ≤ 200 字报告：
-- overlay 截图（存 `/tmp/overlay_demo.png` 或让他手动截）· 至少描述视觉效果
-- MuMu 窗口坐标对齐表现（跟随移动流畅否）
-- 每个 kind 的卡片长什么样（是否 6 类都 UI 兼容）
-- 用户桌面环境适配情况（分辨率 · 缩放 · 多显示器有无问题）
-- 后续调优 TODO（比如动画 · 多卡片堆叠 · 自适应字号）
-
-不 git commit。
+- Don't introduce Electron / Tauri / a web UI framework · just PyQt6
+- Don't write your own WebSocket reconnect exponential backoff — a fixed 5s interval is enough
+- Don't add a config file / YAML · CLI args are enough
+- Don't build a "config panel inside the overlay" · v1 only displays
+- Don't handle multiple MuMu instances · take the largest by area
+- Don't add screenshot / recording features · irrelevant to the real-time coach
+- Don't modify B4's `src/advice_server.py` — if there's a new need, tell the user, don't change the server
+- Don't modify `src/schema.py` · or the other src/ files
 
 ---
 
-## 参考
+## Self-acceptance checklist
+
+Linux/WSL side (what CI can run):
+- [ ] `python -c "from src.overlay_ui import find_mumu_rect, WindowRect, KIND_DISPLAY"` no error
+- [ ] `pytest tests/test_overlay_headless.py -v` all green (under Linux find_mumu_rect should return None)
+- [ ] `pytest tests/ -v --ignore=tests/test_overlay_headless.py` the existing 40+ tests have zero regressions
+
+Windows side (tested on the user's machine · at minimum give them the commands to verify):
+- [ ] `pip install -r requirements-windows.txt` no error
+- [ ] With advice_server running · `python -m src.overlay_ui` starts · the window is transparent and the desktop is visible
+- [ ] With MuMu open · the overlay window **automatically** docks to MuMu (coordinates aligned)
+- [ ] Manually push with `curl -X POST http://localhost:8765/advice -d '{...one valid advice...}'` · the overlay's top-right card **fades in** · fades out after 8 seconds
+- [ ] The overlay doesn't intercept the mouse (clicking on the overlay sends the mouse event to the MuMu window) — with `--no-click-through` debug mode you can click the overlay itself
+- [ ] Shut down advice_server · the overlay doesn't crash · the log shows "WS disconnected · reconnecting in 5s"
+
+`git diff --stat` only contains:
+- `src/overlay_ui.py` (new)
+- `tests/test_overlay_headless.py` (new)
+- `requirements-windows.txt` (appended)
+- `.github/workflows/ci.yml` (optional change · explicitly skip PyQt6)
+- `README.md` (add a section)
+
+## After completion
+
+Give the user a ≤ 200-word report:
+- An overlay screenshot (save to `/tmp/overlay_demo.png` or have them screenshot it manually) · at least describe the visual effect
+- MuMu window alignment behavior (does it follow movement smoothly)
+- What each kind's card looks like (are all 6 kinds UI-compatible)
+- The user's desktop environment fit (resolution · scaling · any multi-monitor issues)
+- Tuning TODOs (e.g. animation · multi-card stacking · adaptive font size)
+
+No git commit.
+
+---
+
+## References
 
 - PyQt6 Window Flags: https://doc.qt.io/qt-6/qt.html#WindowType-enum
-- WA_TransparentForMouseEvents 点击穿透: https://doc.qt.io/qt-6/qt.html#WidgetAttribute-enum
-- Win32 EnumWindows + GetWindowRect: ctypes 直打 user32.dll · 不装 pywin32 · 减少依赖
-- 字体栈：延续 pitch/index.html 的 Songti SC / Baskerville / PingFang SC 组合
+- WA_TransparentForMouseEvents click-through: https://doc.qt.io/qt-6/qt.html#WidgetAttribute-enum
+- Win32 EnumWindows + GetWindowRect: call user32.dll directly via ctypes · no pywin32 · fewer dependencies
+- Font stack: continue pitch/index.html's Songti SC / Baskerville / PingFang SC combination

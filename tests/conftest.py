@@ -7,7 +7,7 @@ from PIL import Image
 
 @pytest.fixture
 def tiny_png_bytes():
-    """一张 8×8 纯色 PNG 的 bytes · 给 frame_monitor 用。"""
+    """Bytes of an 8x8 solid-color PNG, used by frame_monitor tests."""
     img = Image.new("RGB", (8, 8), (120, 80, 40))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -16,7 +16,7 @@ def tiny_png_bytes():
 
 @pytest.fixture
 def solid_frame_factory():
-    """生成指定颜色的 size×size PNG bytes · 用于测 dhash 汉明距离。"""
+    """Produce size x size solid-color PNG bytes, for testing dhash Hamming distance."""
     def _make(rgb: tuple[int, int, int], size: int = 200) -> bytes:
         img = Image.new("RGB", (size, size), rgb)
         buf = io.BytesIO()
@@ -27,7 +27,7 @@ def solid_frame_factory():
 
 @pytest.fixture
 def stripe_frame_bytes():
-    """垂直条纹图 · dhash 相邻像素差分非零 · 用来和纯色图对比出汉明距离。"""
+    """Vertical-stripe image; non-zero dhash adjacent-pixel diffs, used to measure Hamming distance against a solid image."""
     img = Image.new("RGB", (200, 200))
     px = img.load()
     for y in range(200):

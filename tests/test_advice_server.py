@@ -40,7 +40,7 @@ def test_websocket_roundtrip():
     app = create_app()
     client = TestClient(app)
     with client.websocket_connect("/ws/advice") as ws:
-        # 发 advice
+        # send advice
         client.post("/advice", json={"kind": "level", "reasoning": "x", "confidence": 0.5, "action": "up"})
         msg = json.loads(ws.receive_text())
         assert msg["type"] == "advice"
@@ -50,7 +50,7 @@ def test_websocket_roundtrip():
 def test_websocket_replays_history():
     app = create_app()
     client = TestClient(app)
-    # 先 post 两条 · 再连 ws · 应该收到 history
+    # POST two first, then connect ws; should receive history
     for i in range(2):
         client.post("/advice", json={"kind": "augment", "reasoning": f"hist{i}", "confidence": 0.7, "ranked": [], "recommendation": "-"})
     with client.websocket_connect("/ws/advice") as ws:

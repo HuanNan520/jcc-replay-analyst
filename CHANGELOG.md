@@ -1,47 +1,47 @@
 # CHANGELOG
 
-按时间倒序 · 每行对应一个 commit · 只记 feat / 架构级 doc。零散 docstring 同步不列。
+Reverse chronological · one line per commit · only feat / architecture-level docs. Stray docstring syncs are not listed.
 
 ---
 
 ## 2026-04-22
 
-### 阶段 C · 打磨与作品集化（8 项完成）
+### Phase C · Polish and portfolio-readiness (8 items done)
 
-- `b25d07c` docs · README 示例段 HTML 置顶 · 真 LLM 产出优先于老 mock
-- `5827e04` docs · `src/__init__.py` 13 模块分层定位刷新
-- `b89c762` docs · `tasks/README.md` 全部任务完成状态同步
-- `db9159a` docs · `pitch/roadmap.html` C 阶段从 planned 改 done
-- `efc2686` chore · reports/ 目录标准化 · gitkeep + gitignore
-- `91baddb` docs · README 项目状态段 · B 全绿 + C 摘要
-- `c413341` feat · **C14** Windows 一键启动 `start_coach.bat` / `.ps1`
-- `b8ec6bf` feat · **C12** positioning decode fix + **C13** 环境自检脚本
-- `d557edf` ci · pages workflow 改 manual + README 顶部加 live URL
-- `c03b583` ci · **C10.5** GitHub Pages workflow 部署 pitch + roadmap + sample
-- `2a00d38` docs · **C11** `pitch/index.html` 翻新为 AI 教练双入口 landing（1451 行）
-- `3c1511c` feat · **C9** README 双路径架构图 + **C10** e2e smoke 脚本
-- `e360322` refactor · **C1** hallucinate audit 白名单扩充 · 滑动窗口收紧
-- `7db0e0c` feat · **C1** hallucinate audit tokenization + **C4** report HTML 渲染器
+- `b25d07c` docs · README sample section moves HTML to the top · real LLM output takes priority over the old mock
+- `5827e04` docs · `src/__init__.py` 13-module layered positioning refreshed
+- `b89c762` docs · `tasks/README.md` synced to all-tasks-done status
+- `db9159a` docs · `pitch/roadmap.html` phase C changed from planned to done
+- `efc2686` chore · reports/ directory standardized · gitkeep + gitignore
+- `91baddb` docs · README project-status section · B all green + C summary
+- `c413341` feat · **C14** Windows one-click launch `start_coach.bat` / `.ps1`
+- `b8ec6bf` feat · **C12** positioning decode fix + **C13** environment self-check script
+- `d557edf` ci · pages workflow changed to manual + live URL added to top of README
+- `c03b583` ci · **C10.5** GitHub Pages workflow deploys pitch + roadmap + sample
+- `2a00d38` docs · **C11** `pitch/index.html` reworked into the AI-coach dual-entry landing (1451 lines)
+- `3c1511c` feat · **C9** README dual-route architecture diagram + **C10** e2e smoke script
+- `e360322` refactor · **C1** hallucination audit whitelist expanded · sliding window tightened
+- `7db0e0c` feat · **C1** hallucination audit tokenization + **C4** report HTML renderer
 
-### 阶段 B · 实时 coach pipeline 全链路
+### Phase B · Real-time coach pipeline, full chain
 
-- `866ffe3` docs · 加 `pitch/roadmap.html` 工程路线图
+- `866ffe3` docs · added `pitch/roadmap.html` engineering roadmap
 - `755bded` feat · **B2** live_tick + **B5** PyQt overlay
-- `ae97e2c` feat · **B1** OBS 虚拟摄像头 + **B3** 决策 LLM + **B4** WebSocket server · **S17 knowledge** 适配 (73 英雄 / 10 阵容 / top4_rate 排序)
+- `ae97e2c` feat · **B1** OBS Virtual Camera + **B3** decision LLM + **B4** WebSocket server · **S17 knowledge** adaptation (73 champions / 10 comps / top4_rate sorting)
 
-### 阶段 A · MVP · 录屏复盘
+### Phase A · MVP · screen-recording replay
 
-- `36475b7` docs · 本地/云措辞软化 · 支持 fork 接云
-- `60fd039` feat · **A1-A4** 接本地 vLLM Qwen guided_json · 12 帧 sample · S16 RAG · 40 pytest + CI
-- `465d302` initial · pipeline 骨架 + pitch demo
+- `36475b7` docs · softened the local/cloud wording · supports forking to a cloud backend
+- `60fd039` feat · **A1-A4** hooked up local vLLM Qwen guided_json · 12-frame sample · S16 RAG · 40 pytest + CI
+- `465d302` initial · pipeline skeleton + pitch demo
 
 ---
 
-## 数据（commit `b25d07c` 时点）
+## Stats (as of commit `b25d07c`)
 
-- **代码量**: 8226 LOC（src + tests + scripts）
-- **测试**: 198 pytest passing · 零 regression
-- **CI**: GitHub Actions 20+ 次 run 全绿
-- **产物**: main/README landing + 3 个 HTML 展示页 + e2e smoke demo
-- **知识库**: jcc-daida S17 · 73 英雄 · 37 羁绊 · 591 装备 · 10 阵容（按真 top4_rate）
-- **决策延迟**: 本地 Qwen3-VL-4B-FP8 · 6 类 guided_json · 3-5s
+- **Code size**: 8226 LOC (src + tests + scripts)
+- **Tests**: 198 pytest passing · zero regressions
+- **CI**: GitHub Actions 20+ runs, all green
+- **Artifacts**: main/README landing + 3 HTML showcase pages + e2e smoke demo
+- **Knowledge base**: jcc-daida S17 · 73 champions · 37 traits · 591 items · 10 comps (by real top4_rate)
+- **Decision latency**: local Qwen3-VL-4B-FP8 · 6 kinds via guided_json · 3-5s

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>jcc-replay-analyst · 构建日志 · Build Log</title>
+<title>jcc-replay-analyst · Build Log</title>
 <style>
 :root {
   --bg:          #0b0912;
@@ -345,10 +345,10 @@ footer a:hover { color: var(--gold-bright); }
 <main>
 
   <header class="masthead">
-    <div class="eyebrow">BUILD LOG · 构建日志 · 2026-04-21 → 2026-04-22</div>
-    <h1><span class="code">jcc-replay-analyst</span> · 从骨架到 AI 教练</h1>
+    <div class="eyebrow">BUILD LOG · 2026-04-21 → 2026-04-22</div>
+    <h1><span class="code">jcc-replay-analyst</span> · From Skeleton to AI Coach</h1>
     <div class="sub">
-      HuanNan520/jcc-replay-analyst · main @ b226fc8 · 单次连续开发会话 · Claude Opus 4.7 协作
+      HuanNan520/jcc-replay-analyst · main @ b226fc8 · one continuous development session · co-built with Claude Opus 4.7
     </div>
     <div class="divider"></div>
   </header>
@@ -380,19 +380,19 @@ footer a:hover { color: var(--gold-bright); }
   <!-- TLDR -->
   <div class="tldr">
     <p>
-      起始是一份<strong>"录屏复盘工具"</strong>初版骨架 · <em>LLM 分析层还是 placeholder</em>。
-      一次连续开发会话里 · 项目 <strong>pivot 到"实时 AI 教练 + 自动赛后复盘"双入口</strong> ·
-      完成感知层 · 本地 vLLM 推理层 · S17 知识库 RAG · 实时 tick loop ·
-      WebSocket 广播 · PyQt 桌面 overlay · 复盘 HTML 渲染器 · Windows 一键启动 ·
-      <code>scripts/e2e_smoke.py</code> 端到端 50s WSL 自跑通 · <code>pitch/index.html</code>
-      翻新为产品 landing · <code>pitch/roadmap.html</code> 工程路线图 · <em>4 阶段 · 22 commit · 198 pytest 零回归 · CI 连绿</em>。
+      It started as a <strong>"screen-recording review tool"</strong> first-version skeleton · with <em>the LLM analysis layer still a placeholder</em>.
+      Over one continuous development session · the project <strong>pivoted to a "real-time AI coach + automatic post-match review" dual entry</strong> ·
+      completing the perception layer · the local vLLM inference layer · the S17 knowledge-base RAG · the real-time tick loop ·
+      WebSocket broadcast · PyQt desktop overlay · the review HTML renderer · Windows one-click launch ·
+      <code>scripts/e2e_smoke.py</code> self-running end to end in WSL in 50s · <code>pitch/index.html</code>
+      reworked into a product landing page · <code>pitch/roadmap.html</code> the engineering roadmap · <em>4 phases · 22 commits · 198 pytest with zero regressions · CI green throughout</em>.
     </p>
   </div>
 
-  <!-- 阶段 A · MVP -->
+  <!-- Phase A · MVP -->
   <section>
     <div class="section-head">
-      <div class="seal">一 · 阶段 A · 复盘 MVP</div>
+      <div class="seal">I · Phase A · Review MVP</div>
       <div class="tag">Phase A · recording replay analyzer</div>
       <div class="hint">23:44 → 01:23 · 3 commits</div>
     </div>
@@ -405,7 +405,7 @@ footer a:hover { color: var(--gold-bright); }
           <span class="time">2026-04-21 23:44</span>
         </div>
         <h3>initial commit · pipeline skeleton + pitch demo</h3>
-        <div class="desc">仓库起点。感知层骨架 + 手写 mock 复盘报告 + 视觉 pitch。LLM 分析层留 TODO。</div>
+        <div class="desc">Repository starting point. Perception-layer skeleton + hand-written mock review report + visual pitch. The LLM analysis layer left as a TODO.</div>
       </div>
 
       <div class="entry feat">
@@ -416,9 +416,9 @@ footer a:hover { color: var(--gold-bright); }
         </div>
         <h3>wire local LLM pipeline end-to-end <span class="phase-badge">A1–A4</span></h3>
         <ul class="bullets">
-          <li><b>A1</b> · <code>src/llm_analyzer.py</code> · vLLM + Qwen3-VL guided_json · 真 LLM 替代 placeholder</li>
-          <li><b>A2</b> · 12 张真实 S16 帧放到 <code>examples/sample_frames/</code></li>
-          <li><b>A3</b> · <code>src/knowledge.py</code> 接 jcc-daida · S16 113 英雄 / 53 羁绊 / 10 梯队阵容</li>
+          <li><b>A1</b> · <code>src/llm_analyzer.py</code> · vLLM + Qwen3-VL guided_json · real LLM replaces the placeholder</li>
+          <li><b>A2</b> · 12 real S16 frames added to <code>examples/sample_frames/</code></li>
+          <li><b>A3</b> · <code>src/knowledge.py</code> wires up jcc-daida · S16: 113 units / 53 traits / 10 meta comps</li>
           <li><b>A4</b> · <code>tests/</code> × 40 passing · <code>.github/workflows/ci.yml</code></li>
         </ul>
       </div>
@@ -431,19 +431,19 @@ footer a:hover { color: var(--gold-bright); }
         </div>
         <h3>soften local-only wording · support cloud as opt-in</h3>
         <div class="desc">
-          默认本地推理 · 但架构不锁死 —— fork 换云 API 只需另写 <code>CloudLLMAnalyzer</code> 实现。
+          Local inference by default · but the architecture isn't locked in — a fork can switch to a cloud API just by writing a <code>CloudLLMAnalyzer</code> implementation.
         </div>
       </div>
 
     </div>
   </section>
 
-  <!-- 阶段 B · 实时 coach -->
+  <!-- Phase B · real-time coach -->
   <section>
     <div class="section-head">
-      <div class="seal">二 · 阶段 B · 实时 coach 全链路</div>
+      <div class="seal">II · Phase B · Real-Time Coach Full Chain</div>
       <div class="tag">Phase B · live AI coach pipeline</div>
-      <div class="hint">02:02 → 02:16 · 3 commits · 7 子任务</div>
+      <div class="hint">02:02 → 02:16 · 3 commits · 7 subtasks</div>
     </div>
     <div class="timeline">
 
@@ -453,12 +453,12 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 02:02</span>
         </div>
-        <h3>B1/B3/B4 · 数据源 + 决策 LLM + WS 广播 + S17 知识适配 <span class="phase-badge">B1·B3·B4</span></h3>
+        <h3>B1/B3/B4 · data source + decision LLM + WS broadcast + S17 knowledge adaptation <span class="phase-badge">B1·B3·B4</span></h3>
         <ul class="bullets">
-          <li><b>B1</b> · <code>src/capture_obs.py</code> · OBS 虚拟摄像头替代 ADB · 腾讯反外挂感知不到这层</li>
-          <li><b>B3</b> · <code>src/decision_llm.py</code> · 6 类短 prompt · guided_json · 目标 ≤3s</li>
+          <li><b>B1</b> · <code>src/capture_obs.py</code> · OBS virtual camera replaces ADB · Tencent's anti-cheat can't detect this layer</li>
+          <li><b>B3</b> · <code>src/decision_llm.py</code> · 6 short prompts · guided_json · target ≤3s</li>
           <li><b>B4</b> · <code>src/advice_server.py</code> · FastAPI + WebSocket + history buffer</li>
-          <li><b>S17 knowledge</b> · 升级为 S17 默认 · 73 英雄 · 按 lolchess top4_rate 排序</li>
+          <li><b>S17 knowledge</b> · upgraded to S17 default · 73 units · sorted by lolchess top4_rate</li>
         </ul>
       </div>
 
@@ -468,11 +468,11 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 02:08</span>
         </div>
-        <h3>B2 + B5 · 实时 tick loop + PyQt overlay <span class="phase-badge">B2·B5</span></h3>
+        <h3>B2 + B5 · real-time tick loop + PyQt overlay <span class="phase-badge">B2·B5</span></h3>
         <ul class="bullets">
-          <li><b>B2</b> · <code>src/live_tick.py</code> · 中央枢纽 · 感知→决策→广播 · 对局结束归集复盘</li>
-          <li><b>B5</b> · <code>src/overlay_ui.py</code> · PyQt6 无边框 + 透明背景 + Win32 FindWindow 跟随 MuMu</li>
-          <li>实时 coach 双入口产品闭环完成</li>
+          <li><b>B2</b> · <code>src/live_tick.py</code> · central hub · perception→decision→broadcast · aggregates the review when the match ends</li>
+          <li><b>B5</b> · <code>src/overlay_ui.py</code> · PyQt6 frameless + transparent background + Win32 FindWindow tracking MuMu</li>
+          <li>Real-time coach dual-entry product loop complete</li>
         </ul>
       </div>
 
@@ -482,19 +482,19 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 02:16</span>
         </div>
-        <h3>add pitch/roadmap.html · 工程路线图可视化</h3>
-        <div class="desc">A/B/C 三阶段进度 · 深色金色风格 · 延续 pitch/index.html 视觉语言。</div>
+        <h3>add pitch/roadmap.html · engineering roadmap visualization</h3>
+        <div class="desc">A/B/C three-phase progress · dark gold style · continues the pitch/index.html visual language.</div>
       </div>
 
     </div>
   </section>
 
-  <!-- 阶段 C · 打磨 -->
+  <!-- Phase C · polish -->
   <section>
     <div class="section-head">
-      <div class="seal">三 · 阶段 C · 打磨与作品集化</div>
+      <div class="seal">III · Phase C · Polish & Portfolio-Ready</div>
       <div class="tag">Phase C · polish & portfolio-ready</div>
-      <div class="hint">02:27 → 03:17 · 7 commits · 8 子任务</div>
+      <div class="hint">02:27 → 03:17 · 7 commits · 8 subtasks</div>
     </div>
     <div class="timeline">
 
@@ -504,12 +504,12 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 02:27</span>
         </div>
-        <h3>C1 + C4 · Hallucinate audit + 复盘 HTML 渲染器 <span class="phase-badge">C1·C4</span></h3>
+        <h3>C1 + C4 · hallucination audit + review HTML renderer <span class="phase-badge">C1·C4</span></h3>
         <ul class="bullets">
-          <li><b>C1</b> · <code>_scan_text_for_unknown_names</code> tokenization 滑动窗口 + 白名单 + 上下文触发词</li>
+          <li><b>C1</b> · <code>_scan_text_for_unknown_names</code> tokenization sliding window + whitelist + context trigger words</li>
           <li><b>C4</b> · <code>src/report_renderer.py</code> + <code>scripts/demo_report.py</code> + <code>examples/sample_report.html</code></li>
-          <li><code>_save_report</code> 从只落 md/json 升级为 md/json/html 三件套</li>
-          <li>替换原手写 mock · 真 LLM 产出成为仓库门面</li>
+          <li><code>_save_report</code> upgraded from md/json only to the md/json/html trio</li>
+          <li>Replaces the original hand-written mock · real LLM output becomes the repo's front face</li>
         </ul>
       </div>
 
@@ -519,10 +519,10 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">refactor</span>
           <span class="time">2026-04-22 02:32</span>
         </div>
-        <h3>C1 hallucinate audit · 扩白名单 + 收紧滑动窗口</h3>
+        <h3>C1 hallucination audit · expand whitelist + tighten sliding window</h3>
         <div class="desc">
-          修 agent 自己发现的"经济之神后立"类误报 —— 白名单补 45+ 条中文动作/叙述短语 ·
-          片段不允许以触发词起始或结尾。自迭代 · 展示工程敏感度。
+          Fixes false positives the agent caught itself (e.g. "经济之神后立"-type strings) — the whitelist gains 45+ Chinese action/narration phrases ·
+          and a fragment may not start or end with a trigger word. Self-iterated · demonstrates engineering sensitivity.
         </div>
       </div>
 
@@ -532,11 +532,11 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 02:38</span>
         </div>
-        <h3>C9 + C10 · README 架构图翻新 + e2e smoke demo <span class="phase-badge">C9·C10</span></h3>
+        <h3>C9 + C10 · README architecture diagram refresh + e2e smoke demo <span class="phase-badge">C9·C10</span></h3>
         <ul class="bullets">
-          <li><b>C9</b> · README 技术架构段 · 老单路径 → 双路径（OBS 实时 / mp4 复盘共享感知层）</li>
-          <li><b>C10</b> · <code>scripts/e2e_smoke.py</code> · 不依赖 Windows · 50s 跑通全链路 · 产出 18KB HTML 复盘</li>
-          <li>作品集有了可一键验证 pipeline 连通的 demo 脚本</li>
+          <li><b>C9</b> · README architecture section · old single path → dual paths (OBS real-time / mp4 review share one perception layer)</li>
+          <li><b>C10</b> · <code>scripts/e2e_smoke.py</code> · no Windows dependency · runs the full chain in 50s · produces an 18KB HTML review</li>
+          <li>The portfolio now has a demo script that verifies pipeline connectivity in one click</li>
         </ul>
       </div>
 
@@ -546,12 +546,12 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 02:50</span>
         </div>
-        <h3>C11 · pitch/index.html 翻新为 AI 教练双入口 landing <span class="phase-badge">C11</span></h3>
+        <h3>C11 · pitch/index.html reworked into an AI-coach dual-entry landing page <span class="phase-badge">C11</span></h3>
         <ul class="bullets">
-          <li>从"录屏复盘"过时定位 → "实时 coach + 赛后复盘"</li>
-          <li>1956 行旧 JS 动画版 → 1451 行纯 HTML+CSS+SVG</li>
-          <li>6 卷新结构 · Hero / 双入口对比 / 技术架构 SVG / 工程数据 / 合规 stack / 启动方式</li>
-          <li>视觉语言全保留（深紫 + 金 + 朱砂 + 青瓷 + 赭石 + 宋体 + Baskerville）</li>
+          <li>From the outdated "screen-recording review" positioning → "real-time coach + post-match review"</li>
+          <li>1956 lines of old JS-animation version → 1451 lines of pure HTML+CSS+SVG</li>
+          <li>6-chapter new structure · Hero / dual-entry comparison / architecture SVG / engineering data / compliance stack / launch methods</li>
+          <li>Full visual language preserved (deep purple + gold + vermilion + celadon + ochre + Songti + Baskerville)</li>
         </ul>
       </div>
 
@@ -561,9 +561,9 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">ci</span>
           <span class="time">2026-04-22 02:55</span>
         </div>
-        <h3>GitHub Pages workflow · 部署 pitch + roadmap + sample_report</h3>
+        <h3>GitHub Pages workflow · deploy pitch + roadmap + sample_report</h3>
         <div class="desc">
-          <code>.github/workflows/pages.yml</code> · 加深色风格 404 · 目标 URL <code>huannan520.github.io/jcc-replay-analyst/</code>。
+          <code>.github/workflows/pages.yml</code> · adds a dark-styled 404 · target URL <code>huannan520.github.io/jcc-replay-analyst/</code>.
         </div>
       </div>
 
@@ -573,9 +573,9 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">ci</span>
           <span class="time">2026-04-22 03:00</span>
         </div>
-        <h3>pages workflow 改手动触发 · README 加 live 链接</h3>
+        <h3>pages workflow switched to manual trigger · README gains a live link</h3>
         <div class="desc">
-          避免未启用 Pages 时每次 push 都红 · 顶部加在线访问入口 + 启用指引。
+          Avoids a red build on every push when Pages isn't enabled · adds an online-access entry point + enablement guide at the top.
         </div>
       </div>
 
@@ -585,11 +585,11 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 03:10</span>
         </div>
-        <h3>C12 + C13 · positioning fix + 环境自检脚本 <span class="phase-badge">C12·C13</span></h3>
+        <h3>C12 + C13 · positioning fix + environment self-check script <span class="phase-badge">C12·C13</span></h3>
         <ul class="bullets">
-          <li><b>C12</b> · <code>PositioningAdvice</code> 加 <code>@field_validator</code> coerce · 修 row/col 字段 decode error</li>
-          <li>LLM 输出 "3" 字符串 / "后排" 中文 / 越界数字 → clamp 到合法范围 · 不再走 fallback</li>
-          <li><b>C13</b> · <code>scripts/setup_check.py</code> · 19 项环境自检 · 彩色输出 · exit code 区分 warn/fail</li>
+          <li><b>C12</b> · <code>PositioningAdvice</code> gains a <code>@field_validator</code> coerce · fixes the row/col field decode error</li>
+          <li>LLM outputs like the string "3" / the Chinese "后排" (backline) / out-of-range numbers → clamped to a valid range · no longer falls back</li>
+          <li><b>C13</b> · <code>scripts/setup_check.py</code> · 19-item environment self-check · colored output · exit code distinguishes warn/fail</li>
         </ul>
       </div>
 
@@ -599,21 +599,21 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">feat</span>
           <span class="time">2026-04-22 03:17</span>
         </div>
-        <h3>C14 · Windows 一键启动脚本 <span class="phase-badge">C14</span></h3>
+        <h3>C14 · Windows one-click launch script <span class="phase-badge">C14</span></h3>
         <ul class="bullets">
-          <li><code>scripts/start_coach.ps1</code> 233 行 · 4 步开新 PS 窗口起全链路</li>
-          <li>前置检查 Python / OBS Studio / 仓库目录 · CLI 参数 <code>-SkipVLLM</code> / <code>-ModelPath</code> / <code>-Help</code></li>
-          <li>每步起来轮询验活 · <code>scripts/start_coach.bat</code> 简短转发 .ps1</li>
+          <li><code>scripts/start_coach.ps1</code> 233 lines · 4 steps open new PS windows to bring up the full chain</li>
+          <li>Pre-checks Python / OBS Studio / repo directory · CLI args <code>-SkipVLLM</code> / <code>-ModelPath</code> / <code>-Help</code></li>
+          <li>Each step polls for liveness on startup · <code>scripts/start_coach.bat</code> is a short forwarder to .ps1</li>
         </ul>
       </div>
 
     </div>
   </section>
 
-  <!-- 收尾同步 -->
+  <!-- wrap-up sync -->
   <section>
     <div class="section-head">
-      <div class="seal">四 · 收尾 · 文档同步</div>
+      <div class="seal">IV · Wrap-Up · Docs Sync</div>
       <div class="tag">Docs harmonization</div>
       <div class="hint">03:22 → 04:24 · 7 commits</div>
     </div>
@@ -625,8 +625,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 03:22</span>
         </div>
-        <h3>README 项目状态段 · B 路线全绿 + C 摘要</h3>
-        <div class="desc">B1-B5 从 🚧 改 ✅ · 加 C 阶段 8 项子任务列表 · S17 实际数据校正。</div>
+        <h3>README project-status section · Path B all green + Phase C summary</h3>
+        <div class="desc">B1-B5 changed from 🚧 to ✅ · adds the 8-item Phase C subtask list · corrects to actual S17 data.</div>
       </div>
 
       <div class="entry chore">
@@ -635,8 +635,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">chore</span>
           <span class="time">2026-04-22 03:27</span>
         </div>
-        <h3>reports/ 目录标准化 · gitkeep + 说明 + gitignore 规则</h3>
-        <div class="desc">clone 后 live_tick 不会因缺目录 crash · 实际报告文件不入库。</div>
+        <h3>standardize reports/ directory · gitkeep + notes + gitignore rules</h3>
+        <div class="desc">After cloning, live_tick won't crash on a missing directory · actual report files stay out of the repo.</div>
       </div>
 
       <div class="entry docs">
@@ -645,8 +645,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 03:38</span>
         </div>
-        <h3>pitch/roadmap.html C 阶段 planned → done</h3>
-        <div class="desc">Hero stat "阶段 B" 改 "三阶段" · C 卡片 8 项完成列表。</div>
+        <h3>pitch/roadmap.html Phase C planned → done</h3>
+        <div class="desc">Hero stat "Phase B" changed to "3 phases" · Phase C card with the 8-item completion list.</div>
       </div>
 
       <div class="entry docs">
@@ -655,8 +655,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 03:48</span>
         </div>
-        <h3>tasks/README.md 同步 B/C 完成状态</h3>
-        <div class="desc">所有 B1-B5 ✅ · C 阶段 8 项清单入表。</div>
+        <h3>tasks/README.md synced to B/C completion status</h3>
+        <div class="desc">All of B1-B5 ✅ · the 8-item Phase C list added to the table.</div>
       </div>
 
       <div class="entry docs">
@@ -665,8 +665,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 03:53</span>
         </div>
-        <h3>src/analyzer.py docstring 更新</h3>
-        <div class="desc">模块文档从"骨架 + TODO"升级为"pipeline 编排 · 三层都已接真实实现"。</div>
+        <h3>src/analyzer.py docstring update</h3>
+        <div class="desc">Module doc upgraded from "skeleton + TODO" to "pipeline orchestration · all three layers wired to real implementations".</div>
       </div>
 
       <div class="entry docs">
@@ -675,10 +675,10 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 04:14</span>
         </div>
-        <h3>src/__init__.py 同步新产品定位 · 13 模块分层</h3>
+        <h3>src/__init__.py synced to the new product positioning · 13 modules layered</h3>
         <div class="desc">
-          从"金铲铲对局 AI 复盘分析" → "AI 教练 · 实时 + 复盘双入口"。
-          分层列全 13 个模块 · 感知/数据源/RAG/决策+推理/交付。
+          From "AI match review analysis for TFT" → "AI coach · real-time + review dual entry".
+          Lists all 13 modules by layer · perception / data source / RAG / decision+inference / delivery.
         </div>
       </div>
 
@@ -688,8 +688,8 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 04:19</span>
         </div>
-        <h3>README 示例报告段 · HTML 置顶 · 标 .md 为老 mock</h3>
-        <div class="desc">真 LLM 产出优先于手写 mock · 让评估者第一眼看到真产出。</div>
+        <h3>README sample-report section · HTML pinned to top · .md marked as the old mock</h3>
+        <div class="desc">Real LLM output takes priority over the hand-written mock · so reviewers see the real output first.</div>
       </div>
 
       <div class="entry docs">
@@ -698,38 +698,38 @@ footer a:hover { color: var(--gold-bright); }
           <span class="type">docs</span>
           <span class="time">2026-04-22 04:24</span>
         </div>
-        <h3>加 CHANGELOG.md · 21 commit 时间线</h3>
-        <div class="desc">按时间倒序整理 · 数据截面 8226 LOC · 198 pytest · 3-5s 决策延迟。</div>
+        <h3>add CHANGELOG.md · 21-commit timeline</h3>
+        <div class="desc">Organized in reverse chronological order · data snapshot 8226 LOC · 198 pytest · 3-5s decision latency.</div>
       </div>
 
     </div>
   </section>
 
-  <!-- 关键成果 -->
+  <!-- key artifacts -->
   <section>
     <div class="section-head">
-      <div class="seal">五 · 关键成果 · 交付物</div>
+      <div class="seal">V · Key Outcomes · Artifacts</div>
       <div class="tag">Artifacts</div>
     </div>
     <div class="tldr">
       <p>
-        可直接访问的产物：<strong>主 README</strong>（含 live badge）·
-        <code>pitch/index.html</code>（AI 教练 landing · 1451 行）·
-        <code>pitch/roadmap.html</code>（工程路线图）·
-        <code>pitch/build_log.html</code>（本页）·
-        <code>examples/sample_report.html</code>（真 LLM 复盘产出 · 17 KB）·
-        <code>scripts/e2e_smoke.py</code>（WSL 50s 跑通）·
-        <code>scripts/start_coach.bat</code>（Windows 一键）·
-        <code>scripts/setup_check.py</code>（19 项自检）·
-        <code>CHANGELOG.md</code>。
-        CI <em>22 连绿</em> · 198 pytest 零回归 · <em>作品集可分享</em>。
+        Directly accessible artifacts: <strong>main README</strong> (with live badge) ·
+        <code>pitch/index.html</code> (AI-coach landing · 1451 lines) ·
+        <code>pitch/roadmap.html</code> (engineering roadmap) ·
+        <code>pitch/build_log.html</code> (this page) ·
+        <code>examples/sample_report.html</code> (real LLM review output · 17 KB) ·
+        <code>scripts/e2e_smoke.py</code> (runs in WSL in 50s) ·
+        <code>scripts/start_coach.bat</code> (Windows one-click) ·
+        <code>scripts/setup_check.py</code> (19-item self-check) ·
+        <code>CHANGELOG.md</code>.
+        CI <em>22 green in a row</em> · 198 pytest with zero regressions · <em>ready to share as a portfolio</em>.
       </p>
     </div>
   </section>
 
   <footer>
     <span>
-      生成 · 2026-04-22 · by Claude Opus 4.7 · 连续开发会话
+      Generated · 2026-04-22 · by Claude Opus 4.7 · continuous development session
     </span>
     <span>
       <a href="https://github.com/HuanNan520/jcc-replay-analyst">Repo</a> ·

@@ -1,19 +1,23 @@
-"""低延迟决策 LLM —— 六类决策点的短 prompt 专家。
+"""Low-latency decision LLM — a short-prompt expert for six decision-point types.
 
-和 `llm_analyzer.py` 并存但职责正交：
-  - `llm_analyzer.LocalLLMAnalyzer.synthesize()` 做整局复盘 · ≥30 秒预算 · 吃整串 WorldState
-  - `DecisionLLM.decide()` 做单点决策 · ≤3 秒预算 · 吃单帧 WorldState
+Coexists with `llm_analyzer.py` but with orthogonal responsibilities:
+  - `llm_analyzer.LocalLLMAnalyzer.synthesize()` does full-match replay analysis · >=30s budget · takes the whole WorldState sequence
+  - `DecisionLLM.decide()` makes a single-point decision · <=3s budget · takes a single-frame WorldState
 
-每个 decision kind 有独立 prompt · 使用字典 dispatch（不写 if/elif 链）。
-外部结构化输出走 vLLM `guided_json` · httpx 直连 · 不依赖 openai/anthropic SDK。
+Each decision kind has its own prompt · dispatched via a dict (no if/elif chain).
+Structured output goes through vLLM `guided_json` · direct httpx · no openai/anthropic SDK dependency.
 
-运行时路线：
-  - 默认本地 vLLM OpenAI 兼容接口 · 端口 8000 · 模型 Qwen3-VL-4B-FP8
-  - knowledge 可选（A3 的 S16Knowledge / S17Knowledge 鸭子类型兼容）· None 时降级到通用规则
-  - LLM 失败 / 输出非 JSON 时返回对应 Advice 子类的骨架实例 · 永不抛异常给 UI
+Runtime path:
+  - Default local vLLM OpenAI-compatible interface · port 8000 · model Qwen3-VL-4B-FP8
+  - knowledge is optional (S16Knowledge / S17Knowledge are duck-type compatible) · degrades to generic rules when None
+  - On LLM failure / non-JSON output it returns a skeleton instance of the matching Advice subclass · never raises to the UI
 
-注意：prompt 里统一用 "S17"（国服当前赛季）· 即使知识库是 S16 回退也要让 LLM 知道
-当前讨论的是 S17 环境 —— knowledge 里自带版本号前缀会覆盖这个。
+Note: the prompts uniformly say "S17" (the current China-server set) · even when the knowledge
+base falls back to S16, the LLM should still know the current environment is S17 —
+the knowledge object's own version prefix will override this.
+
+The Chinese system/user prompt strings below are fed verbatim to the LLM and must stay
+Chinese — the model coaches in Chinese and recognizes Chinese in-game terminology.
 """
 from __future__ import annotations
 
@@ -37,19 +41,22 @@ DecisionKind = Literal["augment", "carousel", "shop", "level", "positioning", "i
 
 
 class DecisionContext(BaseModel):
-    """告诉 LLM 当前是哪类决策 · 路由到对应 prompt。"""
+    """Tells the LLM which decision type this is · routes to the matching prompt."""
     kind: DecisionKind
     options: list[str] = Field(
         default_factory=list,
-        description="可选项文本 · augment 三选一 / carousel 棋子名 / shop 5 张卡",
+        description="option texts · augment: three to choose from / carousel: unit names / shop: 5 cards",
     )
     timeout_s: float = Field(
         default=25.0,
-        description="玩家决策剩余时间 · 提示 LLM 不要给过于复杂的推理",
+        description="time the player has left to decide · hints the LLM not to over-reason",
     )
 
 
 # ==================== Advice Output Schemas ====================
+# NOTE: the Chinese Field descriptions in these Advice classes are serialized into
+# `model_json_schema()` and handed to vLLM as `guided_json` · they stay Chinese so the
+# schema the (Chinese-coaching) model sees stays coherent.
 
 class AdviceBase(BaseModel):
     kind: DecisionKind
@@ -97,21 +104,21 @@ class PositioningAdvice(AdviceBase):
     @field_validator("main_carry_row", mode="before")
     @classmethod
     def _coerce_row(cls, v: object) -> int:
-        """容错：将字符串/浮点 coerce 成 int · 越界后 clamp 到 [0, 3]。"""
+        """Tolerant: coerce a string/float into int · clamp to [0, 3] when out of range."""
         try:
             v = int(float(str(v)))
         except (ValueError, TypeError):
-            v = 3  # 默认后排
+            v = 3  # default to the back row
         return max(0, min(3, v))
 
     @field_validator("main_carry_col", mode="before")
     @classmethod
     def _coerce_col(cls, v: object) -> int:
-        """容错：将字符串/浮点 coerce 成 int · 越界后 clamp 到 [0, 6]。"""
+        """Tolerant: coerce a string/float into int · clamp to [0, 6] when out of range."""
         try:
             v = int(float(str(v)))
         except (ValueError, TypeError):
-            v = 3  # 默认中间列
+            v = 3  # default to the middle column
         return max(0, min(6, v))
 
 
@@ -131,13 +138,14 @@ Advice = Union[
 # ==================== Knowledge Provider Protocol ====================
 
 class KnowledgeProvider(Protocol):
-    """A3 的 S16Knowledge / S17Knowledge 已经满足 · duck typing。"""
+    """Satisfied by S16Knowledge / S17Knowledge already · duck typing."""
     def version_context(self) -> str: ...
     def comps_table(self) -> str: ...
     def validate_unit_name(self, name: str) -> bool: ...
 
 
 # ==================== Per-kind System Prompts ====================
+# All prompt bodies below are Chinese and fed to the LLM verbatim — keep them Chinese.
 
 SYS_HEADER = (
     "你是《金铲铲之战》S17（国服当前赛季）实战教练。当前在对局中 · "
@@ -306,7 +314,7 @@ ADVICE_CLASSES: dict[str, type[AdviceBase]] = {
 # ==================== DecisionLLM Main Class ====================
 
 def _compact_state(ws: WorldState) -> str:
-    """把 WorldState 压成短文本 · 只给 LLM 当前最关键的信息。"""
+    """Compress the WorldState into short text · give the LLM only the most critical current info."""
     board = ", ".join(f"{u.name}★{u.star}" for u in ws.board[:10])
     bench = ", ".join(u.name for u in ws.bench[:9])
     traits = ", ".join(f"{t.name}×{t.count}" for t in ws.active_traits[:6])
@@ -325,14 +333,14 @@ def _compact_state(ws: WorldState) -> str:
 
 
 class DecisionLLM:
-    """单点决策 LLM · 实时 tick loop 里每个决策点触发一次。"""
+    """Single-point decision LLM · fires once per decision point in the real-time tick loop."""
 
     def __init__(
         self,
         base_url: str = "http://localhost:8000/v1",
         model: str = "Qwen3-VL-4B-FP8",
         knowledge: Optional[KnowledgeProvider] = None,
-        timeout: float = 5.0,  # 实时场景紧预算
+        timeout: float = 5.0,  # tight budget for the real-time scenario
         api_key: str = "EMPTY",
         use_guided_json: bool = True,
     ):
@@ -344,13 +352,16 @@ class DecisionLLM:
         self.use_guided_json = use_guided_json
 
     async def decide(self, ws: WorldState, ctx: DecisionContext) -> Advice:
-        """单点决策 · 目标 ≤ 3 秒返回。
+        """Single-point decision · target <= 3s to return.
 
-        永不抛异常 —— LLM 任何失败（超时 / 网络 / 非法 JSON / schema 不符）
-        都回 `_fallback` 骨架 Advice · UI 至少有东西显示。
+        Never raises — any LLM failure (timeout / network / invalid JSON / schema mismatch)
+        returns a `_fallback` skeleton Advice · so the UI always has something to show.
+
+        The Chinese strings passed to `_fallback(reason=...)` end up in the broadcast
+        `advice.reasoning` shown in the overlay · they stay Chinese (product-facing UI).
         """
         if ctx.kind not in PROMPT_BUILDERS:
-            log.warning("DecisionLLM 未知 kind: %s · 返回 fallback", ctx.kind)
+            log.warning("DecisionLLM unknown kind: %s · returning fallback", ctx.kind)
             return self._fallback(ctx, reason=f"未知 kind={ctx.kind}")
 
         system_prompt = PROMPT_BUILDERS[ctx.kind](ctx, self.knowledge)
@@ -364,7 +375,7 @@ class DecisionLLM:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.2,
-            "max_tokens": 400,  # 实时场景短输出
+            "max_tokens": 400,  # short output for the real-time scenario
         }
         if self.use_guided_json:
             payload["extra_body"] = {
@@ -385,7 +396,7 @@ class DecisionLLM:
                 body = r.json()
         except Exception as e:
             log.warning(
-                "DecisionLLM [%s] 请求失败 · %.2fs · %s",
+                "DecisionLLM [%s] request failed · %.2fs · %s",
                 ctx.kind, time.time() - t0, e,
             )
             return self._fallback(ctx, reason=f"LLM 调用失败 · {type(e).__name__}")
@@ -394,7 +405,7 @@ class DecisionLLM:
         try:
             raw = body["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as e:
-            log.warning("DecisionLLM [%s] 响应体结构异常 · %s", ctx.kind, e)
+            log.warning("DecisionLLM [%s] malformed response body · %s", ctx.kind, e)
             return self._fallback(ctx, reason="响应体结构异常")
 
         usage = body.get("usage", {}) or {}
@@ -411,15 +422,16 @@ class DecisionLLM:
             return advice_cls.model_validate(data)
         except Exception as e:
             log.warning(
-                "DecisionLLM [%s] 输出非法 · %s · raw=%r",
+                "DecisionLLM [%s] invalid output · %s · raw=%r",
                 ctx.kind, e, raw[:300],
             )
             return self._fallback(ctx, reason=f"非法 JSON · {type(e).__name__}")
 
     def _fallback(self, ctx: DecisionContext, reason: str) -> Advice:
-        """LLM 失败时的骨架 Advice · 至少 UI 有东西显示。
+        """Skeleton Advice when the LLM fails · so the UI always shows something.
 
-        reasoning 字段带 `（降级 · xxx）` 前缀 · UI 可据此标灰。
+        The reasoning field carries the Chinese `（降级 · xxx）` prefix (degraded · ...) ·
+        kept Chinese for product-UI consistency · the UI can grey it out accordingly.
         """
         base = {
             "kind": ctx.kind,
@@ -428,7 +440,7 @@ class DecisionLLM:
         }
         if ctx.kind == "augment":
             opts = ctx.options or ["?", "?", "?"]
-            # pad / truncate 到 3 个
+            # pad / truncate to exactly 3
             if len(opts) < 3:
                 opts = opts + ["?"] * (3 - len(opts))
             return AugmentAdvice(**base, ranked=opts[:3], recommendation="—")

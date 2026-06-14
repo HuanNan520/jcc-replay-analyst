@@ -1,13 +1,14 @@
-"""事件驱动主循环的"屏幕变化哨兵"。
+"""The "screen-change sentinel" of the event-driven main loop.
 
-原理：按 ROI（region of interest）计算 dHash，每帧和上帧比汉明距离，
-      超阈值就触发事件。比每秒硬调 VLM 省 10-20 倍显存。
+Principle: compute a dHash per ROI (region of interest), compare each frame to the previous
+      one by Hamming distance, and fire an event when the distance exceeds the threshold.
+      This is 10-20x cheaper on VRAM than hammering the VLM every second.
 
-设计原则：
-- 零外部依赖（只用 Pillow，venv 已装）
-- ROI 用归一化坐标（0-1），实例化时锁定到实际屏幕像素
-- 各 ROI 独立阈值：战斗棋盘抖动大（阈值高），HUD 数字变化小（阈值低）
-- 事件分类交给上层，本模块只产原始事件流
+Design principles:
+- Zero external dependencies (Pillow only, already in the venv)
+- ROIs use normalized coordinates (0-1), locked to actual screen pixels at construction time
+- Each ROI has its own threshold: the combat board jitters a lot (high threshold), HUD numbers change little (low threshold)
+- Event classification is left to the upper layer; this module only produces the raw event stream
 """
 from __future__ import annotations
 
@@ -20,16 +21,16 @@ from PIL import Image
 
 
 # =============================================================================
-# 感知哈希（dHash） — 零依赖实现
+# Perceptual hash (dHash) — zero-dependency implementation
 # =============================================================================
 
-HASH_SIZE = 8  # 产出 64 bit 指纹
+HASH_SIZE = 8  # produces a 64-bit fingerprint
 
 
 def dhash(img: Image.Image, hash_size: int = HASH_SIZE) -> int:
-    """差分哈希。
-    图像 → 灰度 → 缩至 (hash_size+1, hash_size) → 相邻像素差分 → 64bit 整数。
-    对光照/压缩失真鲁棒；对内容真变化敏感。
+    """Difference hash.
+    image -> grayscale -> resize to (hash_size+1, hash_size) -> adjacent-pixel diff -> 64-bit integer.
+    Robust to lighting/compression distortion; sensitive to real content changes.
     """
     g = img.convert("L").resize(
         (hash_size + 1, hash_size), Image.Resampling.LANCZOS
@@ -46,57 +47,58 @@ def dhash(img: Image.Image, hash_size: int = HASH_SIZE) -> int:
 
 
 def hamming(a: int, b: int) -> int:
-    """汉明距离：有多少 bit 不一样"""
+    """Hamming distance: how many bits differ."""
     return bin(a ^ b).count("1")
 
 
 # =============================================================================
-# 默认 ROI 配置 —— 金铲铲竖屏画面
+# Default ROI config — TFT portrait layout
 # =============================================================================
 
-# (x, y, w, h) 归一化坐标。高 > 宽 = 竖屏。横屏用另一套或旋转后传入。
+# (x, y, w, h) normalized coordinates. height > width = portrait. Use the other set
+# for landscape, or rotate the frame before passing it in.
 DEFAULT_REGIONS_PORTRAIT: dict[str, tuple[float, float, float, float]] = {
-    "hud_top":      (0.00, 0.00, 1.00, 0.10),  # 顶部血量/金币/回合/倒计时
-    "carry_zone":   (0.00, 0.10, 1.00, 0.55),  # 棋盘主区（战斗播放在这里）
-    "bench_row":    (0.00, 0.65, 1.00, 0.10),  # 备战行 + 装备槽
-    "shop_bottom":  (0.00, 0.75, 1.00, 0.20),  # 底部 5 张商店卡
-    "center_popup": (0.10, 0.20, 0.80, 0.55),  # 居中弹窗（海克斯/选秀/结算/胜负）
+    "hud_top":      (0.00, 0.00, 1.00, 0.10),  # top: HP / gold / round / countdown
+    "carry_zone":   (0.00, 0.10, 1.00, 0.55),  # main board area (combat plays out here)
+    "bench_row":    (0.00, 0.65, 1.00, 0.10),  # bench row + item slots
+    "shop_bottom":  (0.00, 0.75, 1.00, 0.20),  # bottom 5 shop cards
+    "center_popup": (0.10, 0.20, 0.80, 0.55),  # centered popup (augment / draft / settlement / win-loss)
 }
 
-# 各 ROI 汉明距离阈值（≥ 即视为"变化"）
+# Per-ROI Hamming-distance threshold (>= counts as a "change")
 DEFAULT_THRESHOLDS: dict[str, int] = {
-    "hud_top":      6,   # 数字变了就要 trigger，阈值低
+    "hud_top":      6,   # numbers changing must trigger, so a low threshold
     "shop_bottom":  6,
-    "carry_zone":   20,  # 战斗动画大幅抖动，阈值高防误报
+    "carry_zone":   20,  # combat animation jitters heavily, high threshold to avoid false positives
     "bench_row":    6,
-    "center_popup": 8,   # 弹窗出现/消失都要抓
+    "center_popup": 8,   # catch both popup appearance and dismissal
 }
 
-# 横屏布局归一化 ROI（基于 2560×1456 实测截图标定）
-# 数据源：data/screens/session1/ 完整 S16 对局，2026-04-21
+# Landscape-layout normalized ROIs (calibrated from measured 2560x1456 screenshots)
+# Data source: data/screens/session1/ full S16 match, 2026-04-21
 DEFAULT_REGIONS_LANDSCAPE: dict[str, tuple[float, float, float, float]] = {
-    "hud_top":      (0.00, 0.00, 1.00, 0.07),  # 顶部：回合/金币数字/对手头像一排
-    "trait_left":   (0.00, 0.05, 0.08, 0.75),  # 左侧羁绊栏（皮尔特沃夫/护卫等）
-    "carry_zone":   (0.08, 0.10, 0.65, 0.65),  # 棋盘战斗区
-    "bench_row":    (0.18, 0.75, 0.60, 0.08),  # 备战行 9 格
-    "shop_bottom":  (0.25, 0.88, 0.55, 0.10),  # 底部商店 5 卡
-    "right_panel":  (0.90, 0.05, 0.10, 0.80),  # 右侧对手预览
-    "center_popup": (0.22, 0.22, 0.56, 0.50),  # 中央弹窗（augment/结算/选秀）
+    "hud_top":      (0.00, 0.00, 1.00, 0.07),  # top: round / gold numbers / opponent-avatar strip
+    "trait_left":   (0.00, 0.05, 0.08, 0.75),  # left-side trait bar (Piltover / Guardian etc.)
+    "carry_zone":   (0.08, 0.10, 0.65, 0.65),  # board combat area
+    "bench_row":    (0.18, 0.75, 0.60, 0.08),  # 9-slot bench row
+    "shop_bottom":  (0.25, 0.88, 0.55, 0.10),  # bottom shop, 5 cards
+    "right_panel":  (0.90, 0.05, 0.10, 0.80),  # right-side opponent preview
+    "center_popup": (0.22, 0.22, 0.56, 0.50),  # center popup (augment / settlement / draft)
 }
 
 DEFAULT_THRESHOLDS_LANDSCAPE: dict[str, int] = {
-    "hud_top":      5,    # 回合/金币数字变化敏感
-    "trait_left":   5,    # 羁绊激活变化敏感
-    "carry_zone":   22,   # 战斗动画大，阈值高防误报
+    "hud_top":      5,    # sensitive to round / gold number changes
+    "trait_left":   5,    # sensitive to trait-activation changes
+    "carry_zone":   22,   # large combat animation, high threshold to avoid false positives
     "bench_row":    6,
-    "shop_bottom":  6,    # 商店刷新要抓
-    "right_panel":  6,    # 对手血量变
-    "center_popup": 10,   # 弹窗出现才抓
+    "shop_bottom":  6,    # must catch shop refreshes
+    "right_panel":  6,    # opponent HP changes
+    "center_popup": 10,   # only catch popup appearance
 }
 
 
 # =============================================================================
-# 数据结构
+# Data structures
 # =============================================================================
 
 @dataclass(frozen=True)
@@ -115,7 +117,7 @@ ImageSource = Union[bytes, bytearray, Image.Image]
 # =============================================================================
 
 class FrameMonitor:
-    """管理多个 ROI，每帧输出事件列表。"""
+    """Manages multiple ROIs, emitting an event list per frame."""
 
     def __init__(
         self,
@@ -126,10 +128,10 @@ class FrameMonitor:
     ):
         """
         Args:
-            screen_size: (width, height) 屏幕像素。
-            regions: ROI 归一化坐标。None 时按 orientation 选默认。
-            thresholds: 各 region 汉明距离阈值。None 同上。
-            orientation: "portrait" / "landscape" / "auto"（默认按 w vs h 判断）
+            screen_size: (width, height) in screen pixels.
+            regions: ROI normalized coordinates. When None, picks a default by orientation.
+            thresholds: per-region Hamming-distance thresholds. None as above.
+            orientation: "portrait" / "landscape" / "auto" (default: decided by w vs h)
         """
         self.screen_w, self.screen_h = screen_size
         if orientation == "auto":
@@ -149,7 +151,7 @@ class FrameMonitor:
         self.frame_count = 0
 
     def _crop_box_px(self, name: str) -> tuple[int, int, int, int]:
-        """归一化坐标 → PIL crop 所需的 (left, top, right, bottom) 像素。"""
+        """Normalized coordinates -> the (left, top, right, bottom) pixels PIL crop needs."""
         x, y, w, h = self.regions[name]
         return (
             int(x * self.screen_w),
@@ -159,8 +161,8 @@ class FrameMonitor:
         )
 
     def observe(self, img_source: ImageSource) -> list[FrameEvent]:
-        """吃一张截图，返回每个 ROI 的事件。
-        首帧（没有 baseline）全部返回 triggered=False 并建立 baseline。
+        """Take one screenshot, return an event per ROI.
+        On the first frame (no baseline), everything returns triggered=False and the baseline is established.
         """
         img = self._load_image(img_source)
         self.frame_count += 1
@@ -174,7 +176,7 @@ class FrameMonitor:
             last = self._last_hashes.get(name)
 
             if last is None:
-                # 首次见，建立 baseline
+                # First sighting, establish the baseline
                 self._last_hashes[name] = cur
                 events.append(FrameEvent(name, 0, False, now))
                 continue
@@ -204,35 +206,35 @@ class FrameMonitor:
         return [e.region for e in events if e.triggered]
 
     def reset(self) -> None:
-        """清空 baseline，下一帧重新起点（场景切换时用）"""
+        """Clear the baseline so the next frame starts fresh (use on scene transitions)."""
         self._last_hashes.clear()
         self.frame_count = 0
 
 
 # =============================================================================
-# 粗粒度事件分类（上层可选用）
+# Coarse-grained event classification (optional, for the upper layer)
 # =============================================================================
 
 def classify(changed_regions: Sequence[str]) -> str:
-    """根据哪些 ROI 变了，推一个粗事件类型。
-    精细判断（比如"商店刷新" vs "买卡后商店变"）交给 VLM 解析。
+    """Infer a coarse event type from which ROIs changed.
+    Fine-grained judgment (e.g. "shop refresh" vs "shop changed after buying a card") is left to the VLM.
 
-    启发式（严格）：
-      - 真 popup 要求 center_popup + shop_bottom + hud_top 同时变（弹窗全屏遮盖）
-      - 只 center_popup 变 = 战斗/棋子动画，不是弹窗
-      - carry_zone 单独变 = 战斗中，不用决策
+    Heuristics (strict):
+      - A real popup requires center_popup + shop_bottom + hud_top to change together (a popup covers the full screen)
+      - Only center_popup changing = combat / unit animation, not a popup
+      - carry_zone changing alone = mid-combat, no decision needed
     """
     regs = set(changed_regions)
     if not regs:
         return "idle"
 
-    # 真正 popup：弹窗会半覆盖屏幕 → center_popup 大变 + 至少 2 个主 ROI 也变
-    # （augment 界面会同时遮掉 shop_bottom 和部分 hud_top）
+    # Real popup: a popup half-covers the screen -> center_popup changes a lot + at least 2 major ROIs also change
+    # (the augment screen covers both shop_bottom and part of hud_top)
     major_regs = regs & {"hud_top", "shop_bottom", "right_panel", "trait_left"}
     if "center_popup" in regs and len(major_regs) >= 2:
         return "popup"
 
-    # 商店 + HUD 同时变 = 交易（买/卖）
+    # Shop + HUD changing together = a transaction (buy/sell)
     if "shop_bottom" in regs and "hud_top" in regs:
         return "trade"
     if "shop_bottom" in regs:
@@ -244,20 +246,20 @@ def classify(changed_regions: Sequence[str]) -> str:
     if "bench_row" in regs:
         return "bench_change"
     if "carry_zone" in regs or "center_popup" in regs:
-        return "board_motion"       # 战斗动画；主循环应当忽略，不触发决策
+        return "board_motion"       # combat animation; the main loop should ignore it and not trigger a decision
     return "unknown"
 
 
 # =============================================================================
-# 便捷入口
+# Convenience entry point
 # =============================================================================
 
 def monitor_from_first_screenshot(
     img_source: ImageSource,
     **kwargs,
 ) -> FrameMonitor:
-    """从第一张截图直接推出分辨率建 monitor。省得手动传 screen_size。"""
+    """Build a monitor directly from the first screenshot, inferring resolution. Saves passing screen_size manually."""
     img = FrameMonitor._load_image(img_source)
     mon = FrameMonitor(screen_size=img.size, **kwargs)
-    mon.observe(img)  # 把这张作为 baseline
+    mon.observe(img)  # use this frame as the baseline
     return mon

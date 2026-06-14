@@ -1,4 +1,4 @@
-"""frame_monitor 纯函数 + FrameMonitor baseline/trigger 行为。"""
+"""frame_monitor pure functions + FrameMonitor baseline/trigger behavior."""
 import io
 
 from PIL import Image
@@ -13,7 +13,7 @@ class TestDHash:
         assert dhash(img) == dhash(img)
 
     def test_two_solid_colors_both_hash_zero(self, solid_frame_factory):
-        """dhash 的已知特性：纯色图相邻像素差分全为 0 · 所以 hash 也是 0。"""
+        """Known dhash property: solid images have all-zero adjacent-pixel diffs, so the hash is 0."""
         a = Image.open(io.BytesIO(solid_frame_factory((20, 20, 20))))
         b = Image.open(io.BytesIO(solid_frame_factory((220, 220, 220))))
         assert dhash(a) == 0

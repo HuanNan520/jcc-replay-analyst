@@ -1,34 +1,34 @@
-# B3 · 低延迟决策 LLM（6 类）
+# B3 · low-latency decision LLM (6 kinds)
 
-**分配给**：Claude Opus 4.7（`claude-opus-4-7`）· prompt 工程密集 · 6 套独立 schema + 短 prompt 调优。
-**依赖**：无 · 可和 B1 / B4 并行。
-**预期工时**：1–1.5 天（含 prompt 迭代）。
-**运行时**：**本地 vLLM**（和 A1 同一实例 · 复用 8000 端口 · 模型 Qwen3-VL-4B-FP8）。
-**新产品定位中的角色**：实时 tick loop 的**大脑** · 每个决策点触发一次调用 · 目标单次 ≤ 3 秒。
+**Assigned to**: Claude Opus 4.7 (`claude-opus-4-7`) · prompt-engineering heavy · 6 independent schemas + short-prompt tuning.
+**Dependencies**: none · can run in parallel with B1 / B4.
+**Estimated effort**: 1–1.5 days (including prompt iteration).
+**Runtime**: **local vLLM** (same instance as A1 · reuses port 8000 · model Qwen3-VL-4B-FP8).
+**Role in the new product positioning**: the **brain** of the real-time tick loop · fires once per decision point · target ≤ 3 seconds per call.
 
 ---
 
-## 你是谁
+## Who you are
 
-你是被派到 `HuanNan520/jcc-replay-analyst` 执行 B3 的 Claude Opus 4.7。
-A1 已经把"合成整局 MatchReport"的 LLM 接入做完了（见 `src/llm_analyzer.py`）· 但那是**整局复盘**风格 · 一次调用要 38 秒、吃 34 帧 WorldState。
+You are the Claude Opus 4.7 dispatched to `HuanNan520/jcc-replay-analyst` to execute B3.
+A1 already finished the LLM integration for "synthesize a whole-match MatchReport" (see `src/llm_analyzer.py`) · but that is the **full-match replay** style · one call takes 38 seconds and consumes 34 frames of WorldState.
 
-**实时场景不能用 A1 的路径** —— 玩家每回合只有 30 秒思考时间 · 每个决策点必须**秒级**给建议。
+**The real-time scenario can't use A1's path** — the player has only 30 seconds of thinking time per round · every decision point must give advice in **seconds**.
 
-你的任务：写**六个短 prompt 专家**路由 · 每次调用只针对一个决策点 · 目标 ≤ 3 秒。
+Your task: write a router of **six short-prompt experts** · each call targets one decision point · target ≤ 3 seconds.
 
-## 六类决策点（Decision Kinds）
+## Six decision kinds
 
-| kind           | 触发条件                            | LLM 输出核心                         |
-|----------------|-------------------------------------|--------------------------------------|
-| `augment`      | stage == "augment" · 三选一         | 三张契合度排序 + 推荐 + 理由         |
-| `carousel`     | stage == "carousel" · 轮抱          | 棋子优先级排序 + 核心推荐            |
-| `shop`         | 商店刷新（任意 pvp 间） · 有待抉择   | 买 / 卖 / 锁定 · 每张卡短评          |
-| `level`        | 回合开始 · 金币足够升级             | 升 / 不升 / 留钱 D · 节奏判断        |
-| `positioning` | stage == "positioning"               | 主 C 位置 · 诱饵建议 · 对抗最强玩家  |
-| `item`         | bag 有 ≥2 个散件可合成              | 合给谁 · 合成啥 · 理由               |
+| kind           | trigger condition                   | LLM output core                       |
+|----------------|-------------------------------------|---------------------------------------|
+| `augment`      | stage == "augment" · three-pick     | three options ranked by fit + recommendation + reasoning |
+| `carousel`     | stage == "carousel" · carousel grab | champion priority ranking + core recommendation |
+| `shop`         | shop refresh (any pvp interval) · decision pending | buy / sell / lock · short note per card |
+| `level`        | round start · enough gold to level  | up / stay / hold-and-roll · tempo call |
+| `positioning`  | stage == "positioning"              | main-carry position · bait advice · counter the strongest player |
+| `item`         | bag has ≥2 components to combine     | give to whom · combine into what · reasoning |
 
-## 目标产物
+## Target deliverable
 
 ```python
 from src.decision_llm import DecisionLLM, DecisionContext
@@ -41,14 +41,14 @@ llm = DecisionLLM(
 
 ctx = DecisionContext(kind="augment", options=["法师之力", "复利", "攻速强化"], timeout_s=25)
 advice = await llm.decide(world_state, ctx)
-# advice 是 Advice 的某个子类 · 含 recommendation / reasoning / confidence
+# advice is one subclass of Advice · contains recommendation / reasoning / confidence
 ```
 
 ---
 
-## 具体要做
+## What to do
 
-### 1. 新增 `src/decision_llm.py`
+### 1. Add `src/decision_llm.py`
 
 ```python
 from __future__ import annotations
@@ -73,35 +73,35 @@ DecisionKind = Literal["augment", "carousel", "shop", "level", "positioning", "i
 
 
 class DecisionContext(BaseModel):
-    """告诉 LLM 当前是哪类决策 · 路由到对应 prompt。"""
+    """Tells the LLM which kind of decision this is · routes to the matching prompt."""
     kind: DecisionKind
-    options: list[str] = Field(default_factory=list, description="可选项文本 · augment 三选一 / carousel 棋子名")
-    timeout_s: float = Field(default=25.0, description="玩家决策剩余时间 · 可选辅助信息")
+    options: list[str] = Field(default_factory=list, description="option text · augment three-pick / carousel champion names")
+    timeout_s: float = Field(default=25.0, description="player's remaining decision time · optional auxiliary info")
 
 
 # ==================== Advice Output Schemas ====================
 
 class AdviceBase(BaseModel):
     kind: DecisionKind
-    reasoning: str = Field(..., description="简短理由 · 50-150 字")
+    reasoning: str = Field(..., description="short reasoning · 50-150 chars")
     confidence: float = Field(..., ge=0, le=1)
 
 
 class AugmentAdvice(AdviceBase):
     kind: Literal["augment"] = "augment"
-    ranked: list[str] = Field(..., description="三个选项从最优到最差 · 含契合度标签")
-    recommendation: str = Field(..., description="直接说选哪个 · 'A' / 'B' / 'C' 或名字")
+    ranked: list[str] = Field(..., description="the three options from best to worst · with a fit label")
+    recommendation: str = Field(..., description="say which one directly · 'A' / 'B' / 'C' or the name")
 
 
 class CarouselAdvice(AdviceBase):
     kind: Literal["carousel"] = "carousel"
-    priority: list[str] = Field(..., description="棋子从最优到最差")
+    priority: list[str] = Field(..., description="champions from best to worst")
     recommendation: str
 
 
 class ShopAdvice(AdviceBase):
     kind: Literal["shop"] = "shop"
-    actions: list[dict] = Field(..., description="每张卡一个 {slot, action: buy/skip/note}")
+    actions: list[dict] = Field(..., description="one {slot, action: buy/skip/note} per card")
     should_lock: bool
     should_reroll: bool
 
@@ -109,21 +109,21 @@ class ShopAdvice(AdviceBase):
 class LevelAdvice(AdviceBase):
     kind: Literal["level"] = "level"
     action: Literal["up", "stay", "roll"]
-    hold_gold_above: Optional[int] = Field(None, description="若 action=stay · 建议留多少金币")
+    hold_gold_above: Optional[int] = Field(None, description="if action=stay · suggested gold to keep")
 
 
 class PositioningAdvice(AdviceBase):
     kind: Literal["positioning"] = "positioning"
     main_carry_row: int = Field(..., ge=0, le=3)
     main_carry_col: int = Field(..., ge=0, le=6)
-    bait_unit: Optional[str] = Field(None, description="用什么做诱饵")
+    bait_unit: Optional[str] = Field(None, description="what to use as bait")
     notes: list[str] = Field(default_factory=list)
 
 
 class ItemAdvice(AdviceBase):
     kind: Literal["item"] = "item"
     target_unit: str
-    combine: list[str] = Field(..., description="两个组件合成目标装备名")
+    combine: list[str] = Field(..., description="the two components combine into the target item name")
     hold_for_later: list[str] = Field(default_factory=list)
 
 
@@ -136,13 +136,15 @@ Advice = Union[
 # ==================== Knowledge Provider Protocol ====================
 
 class KnowledgeProvider(Protocol):
-    """A3 的 S16Knowledge 已经满足 · duck typing。"""
+    """A3's S16Knowledge already satisfies this · duck typing."""
     def version_context(self) -> str: ...
     def comps_table(self) -> str: ...
     def validate_unit_name(self, name: str) -> bool: ...
 
 
 # ==================== Per-kind System Prompts ====================
+# NOTE: the prompt bodies below are the Chinese instructions fed to the LLM for the China-server game.
+# They are functional model input · kept in Chinese on purpose (do not translate).
 
 SYS_HEADER = "你是《金铲铲之战》S16 实战教练。当前在对局中 · 玩家要做一个决策 · 你给出最优建议。"
 
@@ -307,7 +309,7 @@ ADVICE_CLASSES = {
 # ==================== DecisionLLM Main Class ====================
 
 def _compact_state(ws: WorldState) -> str:
-    """把 WorldState 压成短文本 · 只给 LLM 当前最关键的信息。"""
+    """Compresses WorldState into short text · gives the LLM only the most critical current info."""
     board = ", ".join(f"{u.name}★{u.star}" for u in ws.board[:10])
     bench = ", ".join(u.name for u in ws.bench[:9])
     traits = ", ".join(f"{t.name}×{t.count}" for t in ws.active_traits[:6])
@@ -330,7 +332,7 @@ class DecisionLLM:
         base_url: str = "http://localhost:8000/v1",
         model: str = "Qwen3-VL-4B-FP8",
         knowledge: Optional[KnowledgeProvider] = None,
-        timeout: float = 5.0,   # 实时场景紧预算
+        timeout: float = 5.0,   # tight budget for the real-time scenario
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -338,7 +340,7 @@ class DecisionLLM:
         self.timeout = timeout
 
     async def decide(self, ws: WorldState, ctx: DecisionContext) -> Advice:
-        """单点决策 · 目标 ≤ 3 秒返回。"""
+        """Single-point decision · target return ≤ 3 seconds."""
         system_prompt = PROMPT_BUILDERS[ctx.kind](ctx, self.knowledge)
         user_prompt = _compact_state(ws)
 
@@ -351,7 +353,7 @@ class DecisionLLM:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.2,
-            "max_tokens": 400,   # 实时场景短输出
+            "max_tokens": 400,   # short output for the real-time scenario
             "extra_body": {
                 "guided_json": advice_cls.model_json_schema(),
             },
@@ -364,8 +366,8 @@ class DecisionLLM:
                 r.raise_for_status()
                 body = r.json()
         except Exception as e:
-            log.warning("DecisionLLM [%s] 请求失败 · %.2fs · %s", ctx.kind, time.time() - t0, e)
-            return self._fallback(ctx, reason=f"LLM 调用失败 · {type(e).__name__}")
+            log.warning("DecisionLLM [%s] request failed · %.2fs · %s", ctx.kind, time.time() - t0, e)
+            return self._fallback(ctx, reason=f"LLM call failed · {type(e).__name__}")
         dt = time.time() - t0
 
         raw = body["choices"][0]["message"]["content"]
@@ -379,13 +381,14 @@ class DecisionLLM:
             data = json.loads(raw)
             return advice_cls.model_validate(data)
         except Exception as e:
-            log.warning("DecisionLLM [%s] 输出非法 · %s · raw=%r", ctx.kind, e, raw[:300])
-            return self._fallback(ctx, reason=f"非法 JSON · {type(e).__name__}")
+            log.warning("DecisionLLM [%s] invalid output · %s · raw=%r", ctx.kind, e, raw[:300])
+            return self._fallback(ctx, reason=f"invalid JSON · {type(e).__name__}")
 
     def _fallback(self, ctx: DecisionContext, reason: str) -> Advice:
-        """LLM 失败时的骨架 Advice · 至少 UI 有东西显示。"""
+        """Skeleton Advice when the LLM fails · so the UI at least has something to show."""
         cls = ADVICE_CLASSES[ctx.kind]
-        # 根据 kind 构造最小合法实例
+        # build the minimal valid instance per kind
+        # NOTE: the reasoning string is shown in the overlay (Chinese UI) · kept as functional output
         base = {"kind": ctx.kind, "reasoning": f"（降级 · {reason}）", "confidence": 0.0}
         if ctx.kind == "augment":
             return AugmentAdvice(**base, ranked=ctx.options or ["?", "?", "?"], recommendation="—")
@@ -402,22 +405,22 @@ class DecisionLLM:
         raise ValueError(f"unknown kind: {ctx.kind}")
 ```
 
-### 2. 单元测试 `tests/test_decision_llm.py`
+### 2. Unit test `tests/test_decision_llm.py`
 
-至少覆盖：
-- `_compact_state` 对空 WorldState 不崩
-- `DecisionLLM._fallback` 对六类都能构造合法 Advice
-- Advice 子类的 pydantic schema 导出包含正确 kind literal
-- 一个 mock httpx 返回的 e2e 测试（不连真 LLM）
+Cover at least:
+- `_compact_state` doesn't crash on an empty WorldState
+- `DecisionLLM._fallback` can build a valid Advice for all six kinds
+- The pydantic schema export of each Advice subclass contains the correct kind literal
+- One e2e test with a mocked httpx response (no real LLM connection)
 
-轻量测试 · 别连真服务。
+Keep it lightweight · don't hit the real service.
 
-### 3. 一个 smoke demo
+### 3. A smoke demo
 
-`scripts/demo_decision.py`：
+`scripts/demo_decision.py`:
 
 ```python
-"""对真 vLLM 跑一次 augment 决策 · 看延迟和输出。"""
+"""Run one augment decision against the real vLLM · check latency and output."""
 import asyncio
 from src.decision_llm import DecisionLLM, DecisionContext
 from src.knowledge import load_s16_knowledge
@@ -437,7 +440,7 @@ async def main():
     llm = DecisionLLM(knowledge=load_s16_knowledge())
     t0 = time.time()
     advice = await llm.decide(ws, ctx)
-    print(f"耗时: {time.time()-t0:.2f}s")
+    print(f"elapsed: {time.time()-t0:.2f}s")
     print(advice.model_dump_json(indent=2))
 
 if __name__ == "__main__":
@@ -446,41 +449,41 @@ if __name__ == "__main__":
 
 ---
 
-## 禁止做的事
+## What not to do
 
-- 严禁 import anthropic / openai · 就 httpx（和 A1 同风格）
-- 不要把 6 个 prompt 塞成一个 god prompt · 拆分有价值（提升稳定性 + 可迭代）
-- 不要写"如果 kind=augment elif kind=carousel"的 if/else 链 · 用 dict dispatch（代码里已示范）
-- 不要改 `src/llm_analyzer.py` · 那是整局复盘用 · 两套并存
-- 不要 coupling knowledge —— knowledge 是 Protocol / Optional · None 时要能降级
-- max_tokens 不准超 500（实时场景硬约束）
-- 不要改 `schema.py`（DecisionContext / Advice 在你的新文件里定义）
-
----
-
-## 自验收清单
-
-- [ ] `python -c "from src.decision_llm import DecisionLLM, DecisionContext, AugmentAdvice"` 导入无错
-- [ ] `pytest tests/test_decision_llm.py -v` 全绿 · 至少 8 个测试
-- [ ] `grep -rn "anthropic\|openai" src/decision_llm.py tests/test_decision_llm.py` 零命中（除非是 "OpenAI 兼容" 这种 comment）
-- [ ] vLLM 跑着的话 · `python scripts/demo_decision.py` 能拿到合法 AugmentAdvice · 耗时打印 ≤ 3s
-- [ ] 每类 kind 都至少跑过一次 fallback 分支（断网时 decide() 不崩 · 返回骨架 Advice）
-- [ ] 和原有 `pytest tests/ -q` 一起跑 · 原 40 个不回归
-
-## 完成后
-
-给用户 ≤ 200 字报告：
-- 6 类 prompt 的 token 预算实测（prompt_tokens 范围）
-- demo_decision.py 跑出的延迟
-- fallback 路径触发时 UI 能显示什么（reasoning 字段内容样例）
-- 给 B2 的接口契约：`DecisionLLM(knowledge=...).decide(ws, ctx) -> Advice`
-
-不 git commit。
+- Absolutely no `import anthropic` / `openai` · just httpx (same style as A1)
+- Don't cram the 6 prompts into one god prompt · splitting has value (more stability + easier iteration)
+- Don't write an "if kind=augment elif kind=carousel" chain · use dict dispatch (already demonstrated in the code)
+- Don't modify `src/llm_analyzer.py` · that's for full-match replay · the two coexist
+- Don't couple knowledge — knowledge is a Protocol / Optional · must degrade gracefully when None
+- max_tokens must not exceed 500 (hard constraint for the real-time scenario)
+- Don't modify `schema.py` (DecisionContext / Advice are defined in your new file)
 
 ---
 
-## 参考
+## Self-acceptance checklist
 
-- A1 的 `src/llm_analyzer.py:143` 里 httpx + guided_json 调用样例 · 直接抄风格
+- [ ] `python -c "from src.decision_llm import DecisionLLM, DecisionContext, AugmentAdvice"` imports without error
+- [ ] `pytest tests/test_decision_llm.py -v` all green · at least 8 tests
+- [ ] `grep -rn "anthropic\|openai" src/decision_llm.py tests/test_decision_llm.py` zero hits (unless it's a comment like "OpenAI-compatible")
+- [ ] If vLLM is running · `python scripts/demo_decision.py` gets a valid AugmentAdvice · printed latency ≤ 3s
+- [ ] Every kind has exercised the fallback branch at least once (offline, decide() doesn't crash · returns a skeleton Advice)
+- [ ] Run together with the existing `pytest tests/ -q` · the original 40 don't regress
+
+## After completion
+
+Give the user a ≤ 200-word report:
+- Measured token budget for the 6 prompt kinds (prompt_tokens range)
+- The latency demo_decision.py produced
+- What the UI can show when the fallback path fires (sample of the reasoning field content)
+- The interface contract for B2: `DecisionLLM(knowledge=...).decide(ws, ctx) -> Advice`
+
+No git commit.
+
+---
+
+## References
+
+- The httpx + guided_json call example at A1's `src/llm_analyzer.py:143` · copy the style directly
 - vLLM structured outputs: https://docs.vllm.ai/en/latest/features/structured_outputs.html
-- 注意 `extra_body` 在 openai sdk 里叫 `extra_body` · httpx 直接打就是 payload 里加 `extra_body` 字段 · vLLM server 会识别
+- Note `extra_body` is called `extra_body` in the openai sdk · hitting httpx directly just means adding an `extra_body` field in the payload · the vLLM server recognizes it

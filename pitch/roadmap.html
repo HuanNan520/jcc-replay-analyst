@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>jcc-replay-analyst · 工程路线图 · 2026-04-22</title>
+<title>jcc-replay-analyst · Engineering Roadmap · 2026-04-22</title>
 <style>
 :root {
   --bg:          #0b0912;
@@ -353,7 +353,7 @@ footer a:hover { color: var(--gold-bright); }
 
   <header class="masthead">
     <div class="eyebrow">ENGINEERING ROADMAP · 2026-04-22</div>
-    <h1><span class="code">jcc-replay-analyst</span> · 工程路线图</h1>
+    <h1><span class="code">jcc-replay-analyst</span> · Engineering Roadmap</h1>
     <div class="meta-line">
       main · <span style="color:var(--gold)">755bded</span>
       <span class="dot">·</span>
@@ -364,7 +364,7 @@ footer a:hover { color: var(--gold-bright); }
       5671 LOC (src + tests)
     </div>
     <div class="meta-line" style="margin-top:6px">
-      HuanNan520/jcc-replay-analyst · 合规金铲铲 AI 教练 · 实时对局建议 + 自动赛后复盘 双入口
+      HuanNan520/jcc-replay-analyst · compliant TFT AI coach · real-time match advice + automatic post-match review, dual entry
     </div>
     <div class="divider"></div>
   </header>
@@ -373,7 +373,7 @@ footer a:hover { color: var(--gold-bright); }
   <div class="hero-stats">
     <div>
       <div class="k">Current Status</div>
-      <div class="v ok">三阶段</div>
+      <div class="v ok">3 phases</div>
       <div class="sub">A1–A4 ✓ · B1–B5 ✓ · C1/C4/C9-C14 ✓</div>
     </div>
     <div>
@@ -383,35 +383,35 @@ footer a:hover { color: var(--gold-bright); }
     </div>
     <div>
       <div class="k">S17 Knowledge</div>
-      <div class="v gold">73<span class="u">英雄</span></div>
-      <div class="sub">37 羁绊 · 591 装备 · 10 阵容</div>
+      <div class="v gold">73<span class="u">units</span></div>
+      <div class="sub">37 traits · 591 items · 10 comps</div>
     </div>
     <div>
       <div class="k">Latency</div>
       <div class="v gold">3–5<span class="u">s</span></div>
-      <div class="sub">6 类决策 · 本地 Qwen3-VL-4B-FP8</div>
+      <div class="sub">6 decision types · local Qwen3-VL-4B-FP8</div>
     </div>
   </div>
 
   <!-- TL;DR -->
   <div class="tldr-card">
     <p class="tldr">
-      项目已从初版"录屏复盘工具"pivot 到 <strong>实时 AI 教练 + 自动复盘</strong> 双入口架构。
-      完整感知 → 决策 → 广播 → UI 闭环跑通 —— OBS 虚拟摄像头驱动 <code>OBSCapture</code> ·
-      <code>FrameMonitor</code> 关键帧触发 · <code>VLMClient</code> 吐 <code>WorldState</code> ·
-      <code>_infer_decision_context</code> 六类触发 · <code>DecisionLLM</code> 3 秒内单点建议 ·
-      <code>advice_server</code> WebSocket 广播 · <code>overlay_ui</code> 半透明卡片浮于 MuMu 窗口之上。
-      对局结束触发 <code>LocalLLMAnalyzer</code> 自动合成复盘 markdown 落 <code>reports/</code>。
-      <em>百分百本地推理 · 零云 API 成本</em> · 合规姿态比 ADB 路线更稳。
+      The project has pivoted from its first-version "screen-recording review tool" to a <strong>real-time AI coach + automatic review</strong> dual-entry architecture.
+      The full perception → decision → broadcast → UI loop runs end to end — the OBS virtual camera drives <code>OBSCapture</code> ·
+      <code>FrameMonitor</code> triggers on key frames · <code>VLMClient</code> emits <code>WorldState</code> ·
+      <code>_infer_decision_context</code> fires six decision types · <code>DecisionLLM</code> returns single-point advice within 3 seconds ·
+      <code>advice_server</code> broadcasts over WebSocket · <code>overlay_ui</code> floats a translucent card above the MuMu window.
+      When the match ends, <code>LocalLLMAnalyzer</code> is triggered to auto-synthesize a review markdown into <code>reports/</code>.
+      <em>100% local inference · zero cloud API cost</em> · a more robust compliance posture than the ADB route.
     </p>
   </div>
 
-  <!-- 阶段时间线 -->
+  <!-- phase timeline -->
   <section>
     <div class="section-head">
-      <div class="seal">一 · 阶段进度</div>
+      <div class="seal">I · Phase Progress</div>
       <div class="tag">Phase Timeline</div>
-      <div class="hint">A 阶段 = 复盘 MVP · B 阶段 = 实时 coach · C 阶段 = 打磨</div>
+      <div class="hint">Phase A = review MVP · Phase B = real-time coach · Phase C = polish</div>
     </div>
     <div class="phase-list">
 
@@ -419,14 +419,14 @@ footer a:hover { color: var(--gold-bright); }
       <div class="phase done">
         <div class="num">A</div>
         <div class="body">
-          <h3>复盘路线 · MVP 完成</h3>
+          <h3>Review Path · MVP Complete</h3>
           <div class="tag">A1–A4 · commit 60fd039 / 36475b7 / ae97e2c</div>
-          <p>吃一局录屏 → 感知层识别 → LLM 合成带量化反事实的教练点评 · 保存到 markdown 报告。</p>
+          <p>Take a match recording → perception layer recognizes it → LLM synthesizes coach commentary with quantified counterfactuals · saved to a markdown report.</p>
           <ul class="bullets">
             <li>A1 · LocalLLMAnalyzer · vLLM + guided_json</li>
-            <li>A2 · 12 张真实 S16 帧 quickstart demo</li>
-            <li>A3 · jcc-daida 接入 · S16 知识库</li>
-            <li>A4 · pytest 40 个 + GitHub Actions CI</li>
+            <li>A2 · 12 real S16 frames quickstart demo</li>
+            <li>A3 · jcc-daida integration · S16 knowledge base</li>
+            <li>A4 · 40 pytest cases + GitHub Actions CI</li>
           </ul>
         </div>
         <div class="meta">
@@ -440,16 +440,16 @@ footer a:hover { color: var(--gold-bright); }
       <div class="phase done">
         <div class="num">B</div>
         <div class="body">
-          <h3>实时 coach 路线 · 全链路闭环</h3>
+          <h3>Real-Time Coach Path · Full-Chain Loop</h3>
           <div class="tag">B1–B5 · commit ae97e2c / 755bded</div>
-          <p>玩家打金铲铲的时候 · OBS 推虚拟摄像头 · Python 持续识别 · 决策点触发 LLM · 建议以半透明卡片浮在 MuMu 窗口上方。对局结束自动合成复盘。</p>
+          <p>While the player is in a TFT match · OBS feeds the virtual camera · Python recognizes frames continuously · decision points trigger the LLM · advice floats as a translucent card above the MuMu window. The match ends and a review is auto-synthesized.</p>
           <ul class="bullets">
-            <li>B1 · OBSCapture 虚拟摄像头数据源</li>
-            <li>B2 · LiveTickLoop 中央枢纽</li>
-            <li>B3 · DecisionLLM 6 类 guided_json</li>
+            <li>B1 · OBSCapture virtual-camera data source</li>
+            <li>B2 · LiveTickLoop central hub</li>
+            <li>B3 · DecisionLLM 6 types guided_json</li>
             <li>B4 · advice_server FastAPI + WebSocket</li>
-            <li>B5 · PyQt6 overlay · Win32 FindWindow 跟随</li>
-            <li>S17 · knowledge.py 升级 · top4_rate 排序</li>
+            <li>B5 · PyQt6 overlay · Win32 FindWindow tracking</li>
+            <li>S17 · knowledge.py upgraded · top4_rate sorting</li>
           </ul>
         </div>
         <div class="meta">
@@ -463,18 +463,18 @@ footer a:hover { color: var(--gold-bright); }
       <div class="phase done">
         <div class="num">C</div>
         <div class="body">
-          <h3>C 阶段 · 打磨与作品集化 · 完成</h3>
-          <div class="tag">8 项 commit · 作品集可直接分享</div>
-          <p>B 阶段 MVP 完成后 · 做了一轮可见可感的打磨：算法加固 · 产品门面升级 · 一键启动 · 环境自检。</p>
+          <h3>Phase C · Polish & Portfolio-Ready · Complete</h3>
+          <div class="tag">8 commits · ready to share as a portfolio</div>
+          <p>After the Phase B MVP was complete · one round of visible, tangible polish: algorithm hardening · product front-end upgrade · one-click launch · environment self-check.</p>
           <ul class="bullets">
-            <li>C1 · Hallucination audit 加强 · tokenization 滑动窗口 + 白名单</li>
-            <li>C4 · Reports HTML 渲染器 · 复盘 md/json/html 三联落盘</li>
-            <li>C9 · README 技术架构图翻新 · 双路径</li>
-            <li>C10 · scripts/e2e_smoke.py · WSL 自跑 50s 出 HTML 复盘</li>
-            <li>C11 · pitch/index.html 翻新为 AI 教练 landing</li>
+            <li>C1 · Hallucination audit hardened · tokenization sliding window + whitelist</li>
+            <li>C4 · Reports HTML renderer · review saved as md/json/html trio</li>
+            <li>C9 · README architecture diagram refresh · dual paths</li>
+            <li>C10 · scripts/e2e_smoke.py · self-runs in WSL, HTML review in 50s</li>
+            <li>C11 · pitch/index.html reworked into an AI-coach landing page</li>
             <li>C12 · Positioning decode fix · pydantic field_validator</li>
-            <li>C13 · scripts/setup_check.py · 19 项环境自检</li>
-            <li>C14 · Windows 一键启动脚本 start_coach.bat/.ps1</li>
+            <li>C13 · scripts/setup_check.py · 19-item environment self-check</li>
+            <li>C14 · Windows one-click launch scripts start_coach.bat/.ps1</li>
           </ul>
         </div>
         <div class="meta">
@@ -487,79 +487,79 @@ footer a:hover { color: var(--gold-bright); }
     </div>
   </section>
 
-  <!-- 数据流 -->
+  <!-- data flow -->
   <section>
     <div class="section-head">
-      <div class="seal">二 · 实时 coach 数据流</div>
+      <div class="seal">II · Real-Time Coach Data Flow</div>
       <div class="tag">Live Coach Pipeline</div>
-      <div class="hint">端到端 · 单决策 ≤ 3 秒</div>
+      <div class="hint">end to end · single decision ≤ 3 seconds</div>
     </div>
     <div class="pipeline">
-<pre><span class="dim">玩家在 Windows 上玩 MuMu 里的金铲铲 S17</span>
+<pre><span class="dim">Player playing TFT S17 inside MuMu on Windows</span>
                     │
                     ▼
-        <span class="hi">OBS Studio</span> 抓 MuMu 窗口 → <span class="hi">虚拟摄像头</span>（Windows 视频设备）
+        <span class="hi">OBS Studio</span> grabs the MuMu window → <span class="hi">virtual camera</span> (Windows video device)
                     │ <span class="dim">1-3 fps · cv2.VideoCapture(N, DSHOW)</span>
                     ▼
         <span class="hi">src.capture_obs.OBSCapture.frames()</span>  →  PNG bytes
                     │
                     ▼
-        <span class="hi">src.frame_monitor.FrameMonitor</span>  dHash 关键帧检测
+        <span class="hi">src.frame_monitor.FrameMonitor</span>  dHash key-frame detection
                     │ <span class="dim">ROI: hud_top / trait_left / carry_zone / shop_bottom / ...</span>
                     ▼
-        <span class="hi">src.vlm_client.VLMClient</span>  Qwen3-VL-4B-FP8 吐 WorldState
+        <span class="hi">src.vlm_client.VLMClient</span>  Qwen3-VL-4B-FP8 emits WorldState
                     │
                     ▼
         <span class="hi">src.live_tick._infer_decision_context</span>
-                    │ <span class="dim">augment / carousel / positioning / level / item / shop跳</span>
+                    │ <span class="dim">augment / carousel / positioning / level / item / shop-reroll</span>
                     ▼
         <span class="hi">src.decision_llm.DecisionLLM.decide</span>  +  <span class="v">KnowledgeProvider (S17)</span>
-                    │ <span class="dim">guided_json · 6 套 Advice schema · ≤ 3s</span>
+                    │ <span class="dim">guided_json · 6 Advice schemas · ≤ 3s</span>
                     ▼
-        <span class="hi">src.advice_server</span>  POST /advice → WebSocket 广播
+        <span class="hi">src.advice_server</span>  POST /advice → WebSocket broadcast
                     │
                     ▼
-        <span class="hi">src.overlay_ui.OverlayWindow</span>  PyQt6 · 半透明卡片
-                    │ <span class="dim">Win32 FindWindow 跟随 MuMu 几何 · 8s 淡入淡出</span>
+        <span class="hi">src.overlay_ui.OverlayWindow</span>  PyQt6 · translucent card
+                    │ <span class="dim">Win32 FindWindow tracks MuMu geometry · 8s fade in/out</span>
                     ▼
-                 <span class="v">玩家决策</span>
+                 <span class="v">Player decides</span>
 
-         <span class="dim">[对局结束 · stage==end]</span>
+         <span class="dim">[match ends · stage==end]</span>
                     │
                     ▼
-        <span class="hi">src.llm_analyzer.LocalLLMAnalyzer.synthesize</span>  (复用 A1 逻辑)
+        <span class="hi">src.llm_analyzer.LocalLLMAnalyzer.synthesize</span>  (reuses A1 logic)
                     │
                     ▼
         <span class="v">reports/TFT-S17-YYYYMMDD-HHMM.md</span> + .json</pre>
     </div>
   </section>
 
-  <!-- S17 Comps 表 -->
+  <!-- S17 comps table -->
   <section>
     <div class="section-head">
-      <div class="seal">三 · S17 阵容梯队（top4_rate 排序）</div>
+      <div class="seal">III · S17 Meta Comps (sorted by top4_rate)</div>
       <div class="tag">S17 Meta Comps</div>
-      <div class="hint">from jcc-daida · lolchess 真实数据</div>
+      <div class="hint">from jcc-daida · real lolchess data</div>
     </div>
     <div class="comps-table">
       <table>
         <thead>
           <tr>
             <th>#</th>
-            <th>阵容</th>
+            <th>Comp</th>
             <th>Tier</th>
             <th>Top4 Rate</th>
-            <th>主 C</th>
-            <th>核心单位</th>
+            <th>Main Carry</th>
+            <th>Core Units</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td>薇古丝 Carry</td><td class="tier-S">S</td><td class="score">0.86</td><td>薇古丝</td><td style="font-size:12px;color:var(--ink-3)">亚托克斯 · 阿卡丽 · 努努和威朗普 · 布里茨 · ...</td></tr>
-          <tr><td>2</td><td>薇古丝 Carry</td><td class="tier-A">A</td><td class="score">0.81</td><td>薇古丝</td><td style="font-size:12px;color:var(--ink-3)">变体阵容</td></tr>
-          <tr><td>3</td><td>库奇 Carry</td><td class="tier-A">A</td><td class="score">0.80</td><td>库奇</td><td style="font-size:12px;color:var(--ink-3)">AP 后排核心</td></tr>
-          <tr><td>4</td><td>布里茨 Carry</td><td class="tier-B">B</td><td class="score">0.78</td><td>布里茨</td><td style="font-size:12px;color:var(--ink-3)">前排法师 hybrid</td></tr>
-          <tr><td>5</td><td>慎 Carry</td><td class="tier-B">B</td><td class="score">0.76</td><td>慎</td><td style="font-size:12px;color:var(--ink-3)">坦克流</td></tr>
-          <tr><td colspan="6" style="color:var(--ink-3);text-align:center;font-size:12px;padding:14px">... 另外 5 套可通过 <code style="color:var(--gold);font-family:var(--mono)">load_knowledge().comps_table()</code> 查看 ...</td></tr>
+          <tr><td>1</td><td>Vex Carry</td><td class="tier-S">S</td><td class="score">0.86</td><td>Vex</td><td style="font-size:12px;color:var(--ink-3)">Aatrox · Akali · Nunu & Willump · Blitzcrank · ...</td></tr>
+          <tr><td>2</td><td>Vex Carry</td><td class="tier-A">A</td><td class="score">0.81</td><td>Vex</td><td style="font-size:12px;color:var(--ink-3)">variant comp</td></tr>
+          <tr><td>3</td><td>Kog'Maw Carry</td><td class="tier-A">A</td><td class="score">0.80</td><td>Kog'Maw</td><td style="font-size:12px;color:var(--ink-3)">AP backline carry</td></tr>
+          <tr><td>4</td><td>Blitzcrank Carry</td><td class="tier-B">B</td><td class="score">0.78</td><td>Blitzcrank</td><td style="font-size:12px;color:var(--ink-3)">frontline-mage hybrid</td></tr>
+          <tr><td>5</td><td>Shen Carry</td><td class="tier-B">B</td><td class="score">0.76</td><td>Shen</td><td style="font-size:12px;color:var(--ink-3)">tank line</td></tr>
+          <tr><td colspan="6" style="color:var(--ink-3);text-align:center;font-size:12px;padding:14px">... another 5 comps via <code style="color:var(--gold);font-family:var(--mono)">load_knowledge().comps_table()</code> ...</td></tr>
         </tbody>
       </table>
     </div>
@@ -567,14 +567,14 @@ footer a:hover { color: var(--gold-bright); }
 
   <footer>
     <span>
-      生成 · 2026-04-22 by Claude Opus 4.7 ·
+      Generated · 2026-04-22 by Claude Opus 4.7 ·
       baseline <code>755bded</code> ·
       131 pytest · CI ✓
     </span>
     <span>
       <a href="https://github.com/HuanNan520/jcc-replay-analyst">Repo</a> ·
-      <a href="./index.html">设计 Pitch</a> ·
-      <a href="../tasks/README.md">任务清单</a> ·
+      <a href="./index.html">Design Pitch</a> ·
+      <a href="../tasks/README.md">Task List</a> ·
       <a href="../README.md">Main README</a>
     </span>
   </footer>

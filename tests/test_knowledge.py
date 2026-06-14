@@ -1,4 +1,4 @@
-"""S16 知识库 smoke test · 验证 jcc-daida 包装层基本契约。"""
+"""S16 knowledge smoke test, validating the basic contract of the jcc-daida wrapper layer."""
 import pytest
 
 from src.knowledge import Comp, S16Knowledge, load_s16_knowledge
@@ -7,7 +7,7 @@ from src.knowledge import Comp, S16Knowledge, load_s16_knowledge
 def test_load_or_gracefully_none():
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未在环境中 · 跳过(预期行为 · 降级路径另测)")
+        pytest.skip("jcc-daida not in environment, skipping (expected behavior; fallback path tested separately)")
     assert len(k.comps) >= 5
     assert len(k.all_units) >= 20
     assert len(k.all_traits) >= 10
@@ -20,7 +20,7 @@ def test_load_or_gracefully_none():
 def test_version_context_nonempty():
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未安装")
+        pytest.skip("jcc-daida not installed")
     ctx = k.version_context()
     assert len(ctx) > 100
     assert "S16" in ctx or "英雄联盟" in ctx
@@ -29,7 +29,7 @@ def test_version_context_nonempty():
 def test_comps_table_is_markdown():
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未安装")
+        pytest.skip("jcc-daida not installed")
     table = k.comps_table()
     assert "|" in table
     assert "---" in table
@@ -39,13 +39,13 @@ def test_comps_table_is_markdown():
 def test_validate_unit_name_rejects_unknown():
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未安装")
+        pytest.skip("jcc-daida not installed")
     assert not k.validate_unit_name("不存在的英雄名字2077")
     assert not k.validate_unit_name("")
 
 
 def test_graceful_degradation_when_path_missing(monkeypatch):
-    """jcc-daida 不可达时 · load_s16_knowledge 返回 None · 不抛异常。"""
+    """When jcc-daida is unreachable, load_s16_knowledge returns None without raising."""
     monkeypatch.setenv("JCC_DAIDA_PATH", "/nonexistent/path/xyz")
     from src import knowledge as knowledge_mod
     monkeypatch.setattr(
@@ -58,10 +58,10 @@ def test_graceful_degradation_when_path_missing(monkeypatch):
 
 
 def test_knowledge_satisfies_protocol_shape():
-    """duck typing 检查 · S16Knowledge 有 KnowledgeProvider 需要的三个方法。"""
+    """Duck-typing check: S16Knowledge has the three methods KnowledgeProvider requires."""
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未安装")
+        pytest.skip("jcc-daida not installed")
     assert callable(getattr(k, "version_context", None))
     assert callable(getattr(k, "comps_table", None))
     assert callable(getattr(k, "validate_unit_name", None))
@@ -70,7 +70,7 @@ def test_knowledge_satisfies_protocol_shape():
 def test_comp_dataclass_shape():
     k = load_s16_knowledge()
     if k is None:
-        pytest.skip("jcc-daida 未安装")
+        pytest.skip("jcc-daida not installed")
     c = k.comps[0]
     assert isinstance(c, Comp)
     assert c.name

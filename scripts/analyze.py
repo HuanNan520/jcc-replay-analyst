@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""CLI · 对一局录屏/截图序列生成复盘报告。
+"""CLI · generate a replay-analysis report for a screen-recording / screenshot sequence of one match.
 
-用法：
-  # 从一个截图目录分析（文件名按帧顺序）
+Usage:
+  # analyze from a screenshot directory (filenames in frame order)
   python scripts/analyze.py --frames data/sample_match/ --out report.md
 
-  # 从一段 mp4 录屏分析（自动抽帧）
+  # analyze from an mp4 recording (automatic frame extraction)
   python scripts/analyze.py --video data/sample.mp4 --out report.md
 
-  # 只用 mock VLM/LLM · 不依赖模型服务 · 验证 pipeline
+  # use mock VLM/LLM only · no model service required · validate the pipeline
   python scripts/analyze.py --frames data/sample_match/ --vlm mock --llm mock
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import logging
 import sys
 from pathlib import Path
 
-# 让 `python scripts/analyze.py` 能 import src.*
+# let `python scripts/analyze.py` import src.*
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.analyzer import Analyzer, AnalyzerConfig
@@ -36,7 +36,7 @@ def iter_frame_bytes_from_dir(directory: Path):
 
 
 def iter_frame_bytes_from_video(video: Path, every_s: float = 5.0):
-    """用 ffmpeg 抽帧 · 每 every_s 秒一张 · yield bytes。"""
+    """Extract frames with ffmpeg · one every every_s seconds · yield bytes."""
     import subprocess, tempfile
     with tempfile.TemporaryDirectory() as td:
         out_pattern = Path(td) / "f%04d.png"
@@ -46,7 +46,7 @@ def iter_frame_bytes_from_video(video: Path, every_s: float = 5.0):
         ]
         rc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         if rc != 0:
-            raise SystemExit("ffmpeg 抽帧失败 · 请确认 ffmpeg 可用")
+            raise SystemExit("ffmpeg frame extraction failed · please make sure ffmpeg is available")
         for f in sorted(Path(td).glob("f*.png")):
             yield f.read_bytes()
 
@@ -77,17 +77,17 @@ def report_to_markdown(report) -> str:
 
 async def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--frames", type=Path, help="截图目录 · 每张一帧")
-    ap.add_argument("--video", type=Path, help="录屏 mp4 · 自动抽帧")
-    ap.add_argument("--every-s", type=float, default=5.0, help="视频模式抽帧间隔秒")
-    ap.add_argument("--out", type=Path, default=Path("report.md"), help="报告输出路径")
+    ap.add_argument("--frames", type=Path, help="screenshot directory · one frame per file")
+    ap.add_argument("--video", type=Path, help="screen-recording mp4 · automatic frame extraction")
+    ap.add_argument("--every-s", type=float, default=5.0, help="frame-extraction interval in seconds for video mode")
+    ap.add_argument("--out", type=Path, default=Path("report.md"), help="report output path")
     ap.add_argument("--vlm", choices=["real", "mock"], default="mock")
     ap.add_argument("--llm", choices=["real", "mock"], default="mock")
     ap.add_argument("--vlm-url", default="http://localhost:8000/v1")
     ap.add_argument("--llm-url", default="http://localhost:8000/v1",
-                    help="本地 vLLM OpenAI 兼容 URL · 默认和 VLM 复用同一实例")
+                    help="local vLLM OpenAI-compatible URL · defaults to reusing the same instance as the VLM")
     ap.add_argument("--llm-model", default="Qwen3-VL-8B-FP8",
-                    help="分析层 LLM 模型名 · 默认复用感知层的 Qwen3-VL-8B-FP8")
+                    help="analysis-layer LLM model name · defaults to reusing the perception layer's Qwen3-VL-8B-FP8")
     ap.add_argument("--log", default="INFO")
     args = ap.parse_args()
 
@@ -95,7 +95,7 @@ async def main():
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
     if not args.frames and not args.video:
-        ap.error("需要 --frames 目录 或 --video 文件")
+        ap.error("a --frames directory or a --video file is required")
 
     if args.frames:
         frames = iter_frame_bytes_from_dir(args.frames)
@@ -115,7 +115,7 @@ async def main():
     args.out.write_text(md, encoding="utf-8")
     print(f"✓ report written: {args.out} ({len(md)} chars)")
 
-    # 也 dump 原始 JSON · 方便二次处理
+    # also dump the raw JSON · convenient for further processing
     args.out.with_suffix(".json").write_text(
         report.model_dump_json(indent=2, by_alias=False),
         encoding="utf-8",

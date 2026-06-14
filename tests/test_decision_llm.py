@@ -1,17 +1,17 @@
-"""B3 · DecisionLLM 单元测试。
+"""B3 · DecisionLLM unit tests.
 
-不连真 LLM · 用 respx mock httpx 或直接单元测 pure function。
-覆盖：
-  - `_compact_state` 对空 WorldState 不崩
-  - `DecisionLLM._fallback` 对六类 kind 都能构造合法 Advice
-  - Advice 子类的 pydantic schema 导出包含正确 kind literal
-  - prompt builder 字典 dispatch 完整
-  - 每类 kind 的 fallback reasoning 带 `（降级 · xxx）` 前缀
-  - mock httpx 的 e2e · 走 guided_json 正常路径
-  - mock httpx 的 e2e · 超时降级
-  - mock httpx · 非法 JSON 响应降级
-  - knowledge=None 时 prompt 能构造（不崩）
-  - knowledge 提供时 prompt 注入 version_context()
+No real LLM connection; mock httpx with respx or unit-test pure functions directly.
+Coverage:
+  - `_compact_state` does not crash on an empty WorldState
+  - `DecisionLLM._fallback` builds a valid Advice for all six kinds
+  - the pydantic schema exported by each Advice subclass carries the correct kind literal
+  - the prompt-builder dict dispatch is complete
+  - the fallback reasoning for each kind carries the `（降级 · xxx）` (fallback) prefix
+  - mock-httpx e2e on the normal guided_json path
+  - mock-httpx e2e with timeout fallback
+  - mock-httpx with an invalid JSON response falling back
+  - the prompt can be built when knowledge=None (no crash)
+  - when knowledge is provided, the prompt injects version_context()
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ from src.schema import ActiveTrait, BagItem, Unit, WorldState
 # ==================== Fixtures ====================
 
 def _blank_ws() -> WorldState:
-    """空 WorldState · 所有计数字段 0。"""
+    """Empty WorldState, all count fields 0."""
     return WorldState(
         stage="unknown",
         round="0-0",
@@ -57,7 +57,7 @@ def _blank_ws() -> WorldState:
 
 
 def _rich_ws() -> WorldState:
-    """带少量数据的 WorldState · 测压缩格式。"""
+    """WorldState with a little data, for testing the compact format."""
     return WorldState(
         stage="augment",
         round="2-1",
@@ -79,9 +79,9 @@ def _rich_ws() -> WorldState:
 
 
 class _FakeKnowledge:
-    """最小 KnowledgeProvider 实现 · 测 knowledge 注入。"""
+    """Minimal KnowledgeProvider implementation, for testing knowledge injection."""
 
-    def __init__(self, ctx_text: str = "版本:S17 测试", comps_text: str = "| 阵容 | 评分 |"):
+    def __init__(self, ctx_text: str = "version:S17 test", comps_text: str = "| comp | score |"):
         self._ctx = ctx_text
         self._comps = comps_text
 
@@ -138,13 +138,13 @@ def test_compact_state_on_rich_includes_all_sections():
 )
 def test_advice_schema_has_correct_kind_literal(cls: type[AdviceBase], expected_kind: str):
     schema = cls.model_json_schema()
-    # kind 应为 literal const == expected_kind
+    # kind should be a literal const == expected_kind
     kind_prop = schema["properties"]["kind"]
-    # pydantic v2 的 Literal 可能用 const 或 enum
+    # pydantic v2's Literal may use const or enum
     const = kind_prop.get("const")
     enum = kind_prop.get("enum")
     assert const == expected_kind or enum == [expected_kind], (
-        f"{cls.__name__} kind literal 不符 · schema={kind_prop}"
+        f"{cls.__name__} kind literal mismatch · schema={kind_prop}"
     )
 
 
@@ -161,8 +161,8 @@ def test_prompt_builders_cover_all_kinds():
     "kind,opts",
     [
         ("augment", ["法师之力", "复利", "攻速强化"]),
-        ("augment", []),  # 空 options 也要能降级
-        ("augment", ["单个"]),  # 不足 3 个 · 应 pad
+        ("augment", []),  # empty options must still fall back
+        ("augment", ["single"]),  # fewer than 3, should be padded
         ("carousel", ["亚索", "卢锡安"]),
         ("carousel", []),
         ("shop", []),
@@ -174,20 +174,20 @@ def test_prompt_builders_cover_all_kinds():
 def test_fallback_for_all_kinds_produces_valid_advice(kind: str, opts: list[str]):
     llm = DecisionLLM()
     ctx = DecisionContext(kind=kind, options=opts)  # type: ignore[arg-type]
-    advice = llm._fallback(ctx, reason=f"单元测试 · {kind}")
+    advice = llm._fallback(ctx, reason=f"unit test · {kind}")
 
-    # 基础字段检查
+    # basic field checks
     assert advice.kind == kind
     assert advice.confidence == 0.0
     assert "降级" in advice.reasoning
-    assert f"单元测试 · {kind}" in advice.reasoning
+    assert f"unit test · {kind}" in advice.reasoning
 
-    # 类型正确
+    # correct type
     assert isinstance(advice, ADVICE_CLASSES[kind])
 
-    # kind-specific 合法性
+    # kind-specific validity
     if isinstance(advice, AugmentAdvice):
-        assert len(advice.ranked) == 3  # 始终 pad/trunc 到 3
+        assert len(advice.ranked) == 3  # always pad/trunc to 3
     if isinstance(advice, CarouselAdvice):
         assert isinstance(advice.priority, list)
     if isinstance(advice, ShopAdvice):
@@ -211,7 +211,7 @@ def test_all_prompts_include_sys_header_and_quality():
         ctx_k = DecisionContext(kind=kind, options=ctx.options)  # type: ignore[arg-type]
         text = builder(ctx_k, None)
         assert "金铲铲" in text
-        assert "S17" in text, f"{kind} prompt 里应显式声明 S17"
+        assert "S17" in text, f"{kind} prompt should explicitly declare S17"
         assert "## 输出 schema" in text
         assert "## 输出质量硬标准" in text
 
@@ -224,22 +224,22 @@ def test_prompt_without_knowledge_uses_fallback_text():
 
 def test_prompt_with_knowledge_injects_version_context():
     ctx = DecisionContext(kind="augment", options=["法师之力", "复利", "攻速强化"])
-    fake = _FakeKnowledge(ctx_text="版本 S17-TEST 内容")
+    fake = _FakeKnowledge(ctx_text="version S17-TEST content")
     text = PROMPT_BUILDERS["augment"](ctx, fake)
-    assert "版本 S17-TEST 内容" in text
+    assert "version S17-TEST content" in text
 
 
 def test_carousel_prompt_uses_comps_table():
     ctx = DecisionContext(kind="carousel", options=["安妮", "亚索"])
-    fake = _FakeKnowledge(comps_text="| 超级阵容 | S |")
+    fake = _FakeKnowledge(comps_text="| super comp | S |")
     text = PROMPT_BUILDERS["carousel"](ctx, fake)
-    assert "超级阵容" in text
+    assert "super comp" in text
 
 
 # ==================== DecisionLLM.decide · mock httpx ====================
 
 class _MockTransport(httpx.AsyncBaseTransport):
-    """返回预设响应的 httpx transport。"""
+    """An httpx transport that returns a preset response."""
 
     def __init__(self, response_body: dict | str, status: int = 200, raise_exc: Exception | None = None):
         self.response_body = response_body
@@ -266,7 +266,7 @@ class _MockTransport(httpx.AsyncBaseTransport):
 
 
 def _patched_client_factory(transport: _MockTransport):
-    """返回一个 AsyncClient 构造 callable · 用来 monkeypatch httpx.AsyncClient。"""
+    """Return an AsyncClient-constructing callable, used to monkeypatch httpx.AsyncClient."""
     original = httpx.AsyncClient
 
     def factory(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
@@ -277,7 +277,7 @@ def _patched_client_factory(transport: _MockTransport):
 
 
 def test_decide_happy_path(monkeypatch):
-    """mock vLLM 返回合法 AugmentAdvice JSON · decide 应成功解析。"""
+    """When the mock vLLM returns valid AugmentAdvice JSON, decide should parse it successfully."""
     ws = _rich_ws()
     ctx = DecisionContext(
         kind="augment",
@@ -308,18 +308,18 @@ def test_decide_happy_path(monkeypatch):
     assert advice.confidence == pytest.approx(0.82)
     assert advice.ranked[0] == "法师之力"
 
-    # 请求体应包含 guided_json schema · 并指向 /chat/completions
+    # the request body should contain the guided_json schema and point at /chat/completions
     assert len(transport.calls) == 1
     call = transport.calls[0]
     assert call["url"].endswith("/chat/completions")
     assert "extra_body" in call["json"]
     assert "guided_json" in call["json"]["extra_body"]
-    # max_tokens 硬约束 ≤ 500
+    # hard constraint: max_tokens <= 500
     assert call["json"]["max_tokens"] <= 500
 
 
 def test_decide_timeout_falls_back(monkeypatch):
-    """httpx 抛 TimeoutException · decide 应返回 fallback · 不抛。"""
+    """When httpx raises TimeoutException, decide should return a fallback and not raise."""
     ws = _blank_ws()
     ctx = DecisionContext(kind="level", options=[])
 
@@ -339,13 +339,13 @@ def test_decide_timeout_falls_back(monkeypatch):
 
 
 def test_decide_invalid_json_falls_back(monkeypatch):
-    """LLM 吐非法 JSON · decide 应走 fallback · 不抛。"""
+    """When the LLM emits invalid JSON, decide should fall back and not raise."""
     ws = _blank_ws()
     ctx = DecisionContext(kind="shop", options=[])
 
     transport = _MockTransport({
         "choices": [
-            {"message": {"content": "这是自然语言 不是 JSON"}}
+            {"message": {"content": "this is natural language, not JSON"}}
         ],
         "usage": {},
     })
@@ -360,13 +360,13 @@ def test_decide_invalid_json_falls_back(monkeypatch):
 
 
 def test_decide_schema_validation_fail_falls_back(monkeypatch):
-    """LLM 吐合法 JSON 但缺字段 · pydantic 校验失败 · 应 fallback。"""
+    """When the LLM emits valid JSON but is missing fields, pydantic validation fails and it should fall back."""
     ws = _blank_ws()
     ctx = DecisionContext(kind="item", options=[])
 
     transport = _MockTransport({
         "choices": [
-            {"message": {"content": json.dumps({"kind": "item", "reasoning": "缺字段"})}}
+            {"message": {"content": json.dumps({"kind": "item", "reasoning": "missing fields"})}}
         ],
     })
     monkeypatch.setattr(httpx, "AsyncClient", _patched_client_factory(transport))
@@ -380,11 +380,11 @@ def test_decide_schema_validation_fail_falls_back(monkeypatch):
 
 
 def test_decide_uses_knowledge_version_context(monkeypatch):
-    """knowledge 非 None 时 · decide 应把 version_context 塞进 system prompt。"""
+    """When knowledge is not None, decide should inject version_context into the system prompt."""
     ws = _rich_ws()
     ctx = DecisionContext(kind="augment", options=["A", "B", "C"])
 
-    fake_k = _FakeKnowledge(ctx_text="注入的版本字符串 XYZ")
+    fake_k = _FakeKnowledge(ctx_text="injected version string XYZ")
 
     llm_reply = {
         "kind": "augment",
@@ -403,13 +403,13 @@ def test_decide_uses_knowledge_version_context(monkeypatch):
 
     call = transport.calls[0]
     sys_msg = call["json"]["messages"][0]["content"]
-    assert "注入的版本字符串 XYZ" in sys_msg
+    assert "injected version string XYZ" in sys_msg
 
 
-# ==================== guided_json 可开关 ====================
+# ==================== guided_json toggle ====================
 
 def test_decide_without_guided_json(monkeypatch):
-    """use_guided_json=False · 请求不带 extra_body。"""
+    """use_guided_json=False · the request carries no extra_body."""
     ws = _blank_ws()
     ctx = DecisionContext(kind="level", options=[])
 
@@ -433,7 +433,7 @@ def test_decide_without_guided_json(monkeypatch):
     assert "extra_body" not in call["json"]
 
 
-# ==================== DecisionContext 自身 ====================
+# ==================== DecisionContext itself ====================
 
 def test_decision_context_default_timeout():
     ctx = DecisionContext(kind="augment", options=["A", "B", "C"])
@@ -445,7 +445,7 @@ def test_decision_context_accepts_all_kinds():
         DecisionContext(kind=kind)  # type: ignore[arg-type]
 
 
-# ==================== PositioningAdvice coerce 容错 ====================
+# ==================== PositioningAdvice coerce fault tolerance ====================
 
 @pytest.mark.parametrize(
     "row_in,col_in,expected_row,expected_col,desc",
@@ -460,29 +460,29 @@ def test_decision_context_accepts_all_kinds():
     ],
 )
 def test_positioning_advice_coerce_row_col(row_in, col_in, expected_row, expected_col, desc):
-    """PositioningAdvice 对 main_carry_row/col 的 coerce 容错验证。"""
+    """Verify PositioningAdvice coerce fault tolerance for main_carry_row/col."""
     advice = PositioningAdvice(
         kind="positioning",
-        reasoning="对位测试 " * 10,
+        reasoning="positioning test " * 10,
         confidence=0.7,
         main_carry_row=row_in,
         main_carry_col=col_in,
     )
     assert advice.main_carry_row == expected_row, f"[{desc}] row mismatch"
     assert advice.main_carry_col == expected_col, f"[{desc}] col mismatch"
-    # 最终值始终在有效边界内
+    # the final value is always within valid bounds
     assert 0 <= advice.main_carry_row <= 3, f"[{desc}] row out of bounds"
     assert 0 <= advice.main_carry_col <= 6, f"[{desc}] col out of bounds"
 
 
 def test_positioning_advice_coerce_does_not_affect_other_fields():
-    """coerce 只影响 row/col · 不改动 reasoning/confidence/bait_unit/notes。"""
+    """Coerce only affects row/col; it does not touch reasoning/confidence/bait_unit/notes."""
     advice = PositioningAdvice(
         kind="positioning",
         reasoning="对位分析：刺客可跳后排 · 建议主C放右侧角落 · 盖伦前排吸引仇恨。",
         confidence=0.85,
-        main_carry_row="2",  # string → 2
-        main_carry_col="5",  # string → 5
+        main_carry_row="2",  # string -> 2
+        main_carry_col="5",  # string -> 5
         bait_unit="盖伦",
         notes=["前排放盖伦", "主C放右侧"],
     )
@@ -495,20 +495,20 @@ def test_positioning_advice_coerce_does_not_affect_other_fields():
 
 
 def test_positioning_coerce_with_mock_llm_string_output(monkeypatch):
-    """模拟 LLM 吐字符串数字 · decide 走正常路径而非 fallback。"""
+    """Simulate the LLM emitting string-form numbers; decide takes the normal path, not fallback."""
     import asyncio
     import json
 
     ws = _blank_ws()
     ctx = DecisionContext(kind="positioning", options=[])
 
-    # LLM 吐字符串形式的坐标（常见 bad output）
+    # LLM emits string-form coordinates (a common bad output)
     llm_reply = {
         "kind": "positioning",
         "reasoning": "对手有刺客 · 主C建议放后排角落 · 盖伦前排吸引火力 · 安妮后排输出更安全。",
         "confidence": 0.75,
-        "main_carry_row": "3",   # 字符串 → coerce → 3
-        "main_carry_col": "0",   # 字符串 → coerce → 0
+        "main_carry_row": "3",   # string -> coerce -> 3
+        "main_carry_col": "0",   # string -> coerce -> 0
         "bait_unit": None,
         "notes": [],
     }
@@ -522,28 +522,28 @@ def test_positioning_coerce_with_mock_llm_string_output(monkeypatch):
     llm = DecisionLLM()
     advice = asyncio.run(llm.decide(ws, ctx))
 
-    # 关键：不走 fallback · confidence > 0
+    # key point: it should not fall back · confidence > 0
     assert isinstance(advice, PositioningAdvice)
-    assert advice.confidence == pytest.approx(0.75), "不应走 fallback"
+    assert advice.confidence == pytest.approx(0.75), "should not fall back"
     assert advice.main_carry_row == 3
     assert advice.main_carry_col == 0
 
 
 def test_positioning_coerce_with_mock_llm_outofrange_output(monkeypatch):
-    """模拟 LLM 吐越界数值 · coerce 后 clamp · 不走 fallback。"""
+    """Simulate the LLM emitting out-of-range numbers; clamp after coerce, no fallback."""
     import asyncio
     import json
 
     ws = _blank_ws()
     ctx = DecisionContext(kind="positioning", options=[])
 
-    # LLM 吐越界值
+    # LLM emits out-of-range values
     llm_reply = {
         "kind": "positioning",
         "reasoning": "对手有巨魔 · 主C建议放最深后排右侧 · 拉开距离避免被冲脸 · 前排盖伦挡线。",
         "confidence": 0.68,
-        "main_carry_row": 7,    # 越界 → clamp → 3
-        "main_carry_col": 10,   # 越界 → clamp → 6
+        "main_carry_row": 7,    # out of range -> clamp -> 3
+        "main_carry_col": 10,   # out of range -> clamp -> 6
         "bait_unit": "盖伦",
         "notes": ["前排顶线"],
     }
@@ -558,7 +558,7 @@ def test_positioning_coerce_with_mock_llm_outofrange_output(monkeypatch):
     advice = asyncio.run(llm.decide(ws, ctx))
 
     assert isinstance(advice, PositioningAdvice)
-    assert advice.confidence == pytest.approx(0.68), "不应走 fallback"
+    assert advice.confidence == pytest.approx(0.68), "should not fall back"
     assert 0 <= advice.main_carry_row <= 3
     assert 0 <= advice.main_carry_col <= 6
     assert advice.main_carry_row == 3   # clamped
@@ -568,12 +568,12 @@ def test_positioning_coerce_with_mock_llm_outofrange_output(monkeypatch):
 # ==================== Zero hallucinated imports ====================
 
 def test_decision_llm_source_has_no_openai_or_anthropic_sdk_import():
-    """硬约束 · decision_llm.py 不准 import openai / anthropic SDK。"""
+    """Hard constraint: decision_llm.py must not import the openai / anthropic SDKs."""
     import inspect
 
     import src.decision_llm as mod
 
     src_text = inspect.getsource(mod)
-    # 允许 "OpenAI 兼容" 这种 comment · 禁止真的 import
+    # comments like "OpenAI-compatible" are allowed; a real import is forbidden
     for banned in ("import openai", "from openai", "import anthropic", "from anthropic"):
-        assert banned not in src_text, f"禁止 {banned}"
+        assert banned not in src_text, f"forbidden: {banned}"

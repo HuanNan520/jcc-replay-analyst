@@ -1,4 +1,4 @@
-"""_coerce_world_state 边界测试 · 验证脏 VLM 输出被强行规范成合法 WorldState。"""
+"""_coerce_world_state boundary tests · verify that dirty VLM output is coerced into a valid WorldState."""
 from src.schema import WorldState
 from src.vlm_client import _coerce_world_state
 

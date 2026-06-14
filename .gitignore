@@ -11,14 +11,14 @@ build/
 .mypy_cache/
 .ruff_cache/
 
-# 模型权重 · 绝不入库
+# Model weights · never committed
 models/
 *.safetensors
 *.bin
 *.ckpt
 *.gguf
 
-# 实时日志 / 游戏截图 / 数据库
+# Live logs / game screenshots / databases
 logs/
 *.log
 data/screens/
@@ -26,19 +26,19 @@ data/game_log/
 *.db
 *.sqlite
 
-# 私密配置
+# Private config
 .env
 .env.*
 !.env.example
 config/local.*
 
-# 临时报告输出
+# Temporary report output
 report.md
 report.json
 report_*.md
 report_*.json
 
-# 编辑器
+# Editors
 .vscode/
 .idea/
 *.swp
@@ -46,7 +46,7 @@ report_*.json
 .DS_Store
 Thumbs.db
 
-# reports · 对局复盘产物 · 不入库 · 保留目录和说明
+# reports · match replay artifacts · not committed · keep the directory and its README
 reports/*
 !reports/.gitkeep
 !reports/README.md

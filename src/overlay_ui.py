@@ -1,21 +1,21 @@
-"""PyQt 桌面 overlay · 半透明卡片浮在 MuMu 模拟器窗口上方。
+"""PyQt desktop overlay · a translucent card floating over the MuMu emulator window.
 
-B5 · 产品门面 —— 玩家看得到的那一层 · 订阅 B4 的 WebSocket 建议流。
+The product face — the layer the player sees · subscribes to the advice server's WebSocket advice stream.
 
-关键特性：
-- Frameless + 置顶 + 半透明背景 · WA_TranslucentBackground
-- 点击穿透（WA_TransparentForMouseEvents）· 玩家照常操作游戏
-- 跟随 MuMu 窗口移动（Win32 FindWindow + GetWindowRect · poll 500ms）
-- 金色边框 + 宋体标题 + 无衬线正文 · 延续 pitch/index.html 视觉语言
-- 淡入淡出（400ms OutCubic / 600ms InCubic）· 新 advice 替换旧 · 8s 后自动淡出
-- WebSocket 重连 5s 固定间隔 · server 断开不崩
+Key features:
+- Frameless + always-on-top + translucent background · WA_TranslucentBackground
+- Click-through (WA_TransparentForMouseEvents) · the player keeps operating the game normally
+- Follows the MuMu window as it moves (Win32 FindWindow + GetWindowRect · poll 500ms)
+- Gold border + Songti title + sans-serif body · continues the pitch/index.html visual language
+- Fade in/out (400ms OutCubic / 600ms InCubic) · new advice replaces old · auto-fades after 8s
+- WebSocket reconnect at a fixed 5s interval · does not crash when the server disconnects
 
-运行时（Windows 原生 Python）：
+Runtime (native Windows Python):
     pip install -r requirements-windows.txt
     python -m src.overlay_ui --ws-url ws://localhost:8765/ws/advice
 
-WSL / Linux 下 PyQt6 能装但 MuMu 窗口对齐走 Win32 · find_mumu_rect 返回 None
-→ 降级为 overlay 贴右上角屏幕（方便无 MuMu 开发调试）。
+On WSL / Linux, PyQt6 installs fine but MuMu window alignment relies on Win32 · find_mumu_rect
+returns None -> the overlay degrades to the top-right corner of the screen (handy for dev/debug without MuMu).
 """
 from __future__ import annotations
 
@@ -46,13 +46,13 @@ try:
     from ctypes import wintypes
     user32 = ctypes.WinDLL("user32", use_last_error=True)
 except (OSError, AttributeError, ImportError):
-    # WSL / Linux · 没 user32.dll · 降级
+    # WSL / Linux · no user32.dll · degrade
     user32 = None
 
 
 @dataclass
 class WindowRect:
-    """Win32 窗口矩形 · 用 dataclass 方便测试。"""
+    """A Win32 window rectangle · a dataclass for easy testing."""
     left: int
     top: int
     right: int
@@ -68,12 +68,13 @@ class WindowRect:
 
 
 def find_mumu_rect(
+    # "模拟器" (= "emulator") is matched against the real Windows window title · kept Chinese.
     title_contains: tuple[str, ...] = ("MuMu", "模拟器"),
 ) -> Optional[WindowRect]:
-    """Windows 原生 · 找 MuMu 窗口坐标。
+    """Windows-native · find the MuMu window coordinates.
 
-    WSL / Linux 下 user32 is None · 返回 None → 调用方降级为屏幕右上角。
-    多实例取面积最大的那个（主窗口）· 不处理多开场景（v1 约定）。
+    On WSL / Linux user32 is None · returns None -> the caller degrades to the top-right of the screen.
+    With multiple instances, takes the one with the largest area (the main window) · does not handle multi-boxing (v1 convention).
     """
     if user32 is None:
         return None
@@ -105,13 +106,13 @@ def find_mumu_rect(
 # ==================== WebSocket subscriber ====================
 
 class AdviceSubscriber(QObject):
-    """后台线程跑 websockets · emit Qt signal 到主线程。
+    """Runs websockets on a background thread · emits a Qt signal to the main thread.
 
-    不用 qasync（多一个依赖）· 开一个 daemon thread 自跑 asyncio。
-    断线 5s 固定间隔重连 · 不上指数退避（server 同机 · 简单够用）。
+    Avoids qasync (one fewer dependency) · spins up a daemon thread running its own asyncio.
+    Reconnects at a fixed 5s interval on disconnect · no exponential backoff (server is on the same machine · simple is enough).
     """
 
-    advice_received = pyqtSignal(dict)   # payload dict · 来自 history 或 advice 消息
+    advice_received = pyqtSignal(dict)   # payload dict · from a history or advice message
     connection_state = pyqtSignal(str)   # "connected" / "disconnected" / "error"
 
     def __init__(self, ws_url: str):
@@ -137,7 +138,7 @@ class AdviceSubscriber(QObject):
         try:
             import websockets
         except ImportError:
-            log.error("websockets 未安装 · pip install websockets")
+            log.error("websockets is not installed · pip install websockets")
             self.connection_state.emit("error")
             return
 
@@ -145,38 +146,40 @@ class AdviceSubscriber(QObject):
             try:
                 async with websockets.connect(self.ws_url) as ws:
                     self.connection_state.emit("connected")
-                    log.info("WS 已连接 · %s", self.ws_url)
+                    log.info("WS connected · %s", self.ws_url)
                     async for raw in ws:
                         if raw == "pong":
                             continue
                         try:
                             msg = json.loads(raw)
                         except json.JSONDecodeError:
-                            log.debug("WS 收到非 JSON · 忽略 · %r", raw[:60])
+                            log.debug("WS received non-JSON · ignoring · %r", raw[:60])
                             continue
                         if msg.get("type") in ("advice", "history"):
                             self.advice_received.emit(msg["payload"])
             except Exception as e:
-                log.warning("WS 断线 · 5s 后重连 · %s", e)
+                log.warning("WS disconnected · reconnecting in 5s · %s", e)
                 self.connection_state.emit("disconnected")
                 await asyncio.sleep(5)
 
 
 # ==================== Advice Card Widget ====================
 
-# 六类决策 · 每类独立颜色 + 符号 · 延续 pitch/index.html 视觉
+# Six decision types · each with its own color + symbol · continues the pitch/index.html visual.
+# The Chinese labels are overlay text shown over the Chinese game, alongside the LLM's Chinese
+# advice body · kept Chinese for product-UI coherence.
 KIND_DISPLAY = {
-    "augment":     ("★ 选增强",    "#e6c17a"),  # 金
-    "carousel":    ("⚫ 轮抱",      "#c9a45d"),  # 暖金
-    "shop":        ("◆ 商店",      "#5a8b7a"),  # 青绿
-    "level":       ("▲ 升级决策",  "#b3432e"),  # 赤朱
-    "positioning": ("◈ 摆位",      "#9c7a3c"),  # 深金
-    "item":        ("✦ 装备",      "#c9a45d"),  # 暖金
+    "augment":     ("★ 选增强",    "#e6c17a"),  # gold
+    "carousel":    ("⚫ 轮抱",      "#c9a45d"),  # warm gold
+    "shop":        ("◆ 商店",      "#5a8b7a"),  # celadon
+    "level":       ("▲ 升级决策",  "#b3432e"),  # vermilion
+    "positioning": ("◈ 摆位",      "#9c7a3c"),  # deep gold
+    "item":        ("✦ 装备",      "#c9a45d"),  # warm gold
 }
 
 
 class AdviceCard(QWidget):
-    """单张半透明卡片 · 300x180 · 金色边框 · 淡入淡出动画。"""
+    """A single translucent card · 300x180 · gold border · fade in/out animation."""
 
     CARD_W = 320
     CARD_H = 200
@@ -185,7 +188,7 @@ class AdviceCard(QWidget):
         super().__init__(parent)
         self.setFixedSize(self.CARD_W, self.CARD_H)
 
-        # 透明度效果 · 用于淡入淡出
+        # Opacity effect · used for fade in/out
         self._opacity = QGraphicsOpacityEffect(self)
         self._opacity.setOpacity(0.0)
         self.setGraphicsEffect(self._opacity)
@@ -194,13 +197,13 @@ class AdviceCard(QWidget):
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(8)
 
-        # kind 标签 · 宋体中号
+        # kind label · Songti, medium size
         self._kind_label = QLabel("")
         f1 = QFont("Songti SC", 12)
         f1.setWeight(QFont.Weight.Medium)
         self._kind_label.setFont(f1)
 
-        # 推荐主文案 · 宋体大号
+        # main recommendation text · Songti, large size
         self._rec_label = QLabel("")
         f2 = QFont("Songti SC", 18)
         f2.setWeight(QFont.Weight.Normal)
@@ -208,14 +211,14 @@ class AdviceCard(QWidget):
         self._rec_label.setWordWrap(True)
         self._rec_label.setStyleSheet("color: #f0e4c8;")
 
-        # 推理理由 · 无衬线小号
+        # reasoning text · sans-serif, small size
         self._reason_label = QLabel("")
         f3 = QFont("PingFang SC", 10)
         self._reason_label.setFont(f3)
         self._reason_label.setWordWrap(True)
         self._reason_label.setStyleSheet("color: #a39d8e;")
 
-        # 置信度 · Baskerville 斜体
+        # confidence · Baskerville italic
         self._conf_label = QLabel("")
         f4 = QFont("Baskerville", 9)
         f4.setItalic(True)
@@ -227,7 +230,7 @@ class AdviceCard(QWidget):
         layout.addWidget(self._reason_label, 1)
         layout.addWidget(self._conf_label)
 
-        # 动画
+        # Animations
         self._fade_in = QPropertyAnimation(self._opacity, b"opacity")
         self._fade_in.setDuration(400)
         self._fade_in.setStartValue(0.0)
@@ -240,7 +243,7 @@ class AdviceCard(QWidget):
         self._fade_out.setEndValue(0.0)
         self._fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
 
-        # 8 秒自动淡出定时器
+        # 8-second auto fade-out timer
         self._hide_timer = QTimer(self)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self._fade_out.start)
@@ -248,13 +251,13 @@ class AdviceCard(QWidget):
         self._accent = QColor("#e6c17a")
 
     def show_advice(self, payload: dict, display_ms: int = 8000) -> None:
-        """收到新 advice · 填充卡片 · 启动淡入 · 设置 8s 淡出。
+        """Received new advice · fill the card · start the fade-in · schedule the 8s fade-out.
 
-        字段兼容：
-          - kind 必填 · 不在 KIND_DISPLAY 时降级为 "◇ {kind}"
-          - recommendation / action 二选一 · 都没有显示 "—"
-          - reasoning 可空 · 截断到 160 字（卡片尺寸有限）
-          - confidence 可空 · 默认 0
+        Field handling:
+          - kind required · falls back to "◇ {kind}" when not in KIND_DISPLAY
+          - recommendation / action, either one · shows "—" when neither is present
+          - reasoning optional · truncated to 160 chars (the card is small)
+          - confidence optional · defaults to 0
         """
         kind = payload.get("kind", "?")
         label, color = KIND_DISPLAY.get(kind, (f"◇ {kind}", "#c9a45d"))
@@ -276,7 +279,7 @@ class AdviceCard(QWidget):
         except (TypeError, ValueError):
             self._conf_label.setText("confidence · —")
 
-        # 重新触发动画 · 如果上一条还在显示会直接替换
+        # Re-trigger the animation · replaces the previous item directly if it is still showing
         self._hide_timer.stop()
         self._fade_out.stop()
         self._fade_in.stop()
@@ -288,26 +291,26 @@ class AdviceCard(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # 半透明深色渐变背景
+        # Translucent dark gradient background
         bg = QLinearGradient(0, 0, 0, self.height())
         bg.setColorAt(0, QColor(19, 17, 28, 235))
         bg.setColorAt(1, QColor(11, 9, 18, 235))
         p.fillRect(self.rect(), QBrush(bg))
 
-        # 金色边框（accent 色）
+        # Gold border (accent color)
         pen = QPen(self._accent)
         pen.setWidth(1)
         p.setPen(pen)
         p.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
-        # 顶部 accent 短线 · 2px 高 60px 宽
+        # Top accent line · 2px tall, 60px wide
         p.fillRect(QRect(0, 0, 60, 2), self._accent)
 
 
 # ==================== Main Overlay Window ====================
 
 class OverlayWindow(QMainWindow):
-    """主 overlay 窗 · frameless + 置顶 + 透明 · 跟随 MuMu 坐标。"""
+    """Main overlay window · frameless + always-on-top + transparent · follows MuMu coordinates."""
 
     def __init__(self, ws_url: str, click_through: bool = True):
         super().__init__()
@@ -321,12 +324,12 @@ class OverlayWindow(QMainWindow):
         flags = (
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool  # Tool 不占任务栏
+            | Qt.WindowType.Tool  # Tool: stays off the taskbar
         )
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         if self._click_through:
-            # 点击穿透 · 鼠标事件到 overlay 下方的窗口（MuMu）
+            # Click-through · mouse events go to the window below the overlay (MuMu)
             self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
     def _setup_ui(self):
@@ -334,7 +337,7 @@ class OverlayWindow(QMainWindow):
         central.setStyleSheet("background: transparent;")
         self.setCentralWidget(central)
         self._card = AdviceCard(central)
-        # 初始位置 · _align_to_mumu 里会覆盖
+        # Initial position · overridden inside _align_to_mumu
         self._card.move(20, 20)
 
     def _setup_subscriber(self, ws_url: str):
@@ -359,14 +362,14 @@ class OverlayWindow(QMainWindow):
     def _align_to_mumu(self):
         rect = find_mumu_rect()
         if rect is None:
-            # 降级：MuMu 没找到 / WSL · 贴右上角屏幕
+            # Degrade: MuMu not found / WSL · pin to the top-right of the screen
             screen_geo = QApplication.primaryScreen().geometry()
             w = AdviceCard.CARD_W + 40
             h = AdviceCard.CARD_H + 40
             self.setGeometry(screen_geo.width() - w - 20, 40, w, h)
             self._card.move(20, 20)
             return
-        # 贴到 MuMu 右上内部 · overlay 几何 = MuMu 几何 · 卡片偏右上
+        # Pin inside MuMu's top-right · overlay geometry = MuMu geometry · card biased to the top-right
         self.setGeometry(rect.left, rect.top, rect.width, rect.height)
         card_x = rect.width - AdviceCard.CARD_W - 24
         card_y = 24
@@ -377,17 +380,17 @@ class OverlayWindow(QMainWindow):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="jcc-coach overlay · 半透明 advice 卡片浮在 MuMu 模拟器上",
+        description="jcc-coach overlay · a translucent advice card floating over the MuMu emulator",
     )
     ap.add_argument(
         "--ws-url",
         default="ws://localhost:8765/ws/advice",
-        help="advice_server 的 WebSocket 地址",
+        help="WebSocket address of the advice_server",
     )
     ap.add_argument(
         "--no-click-through",
         action="store_true",
-        help="overlay 可接收鼠标（便于调试 · 默认点击穿透）",
+        help="let the overlay receive mouse events (for debugging · click-through by default)",
     )
     ap.add_argument("--log-level", default="INFO")
     args = ap.parse_args()

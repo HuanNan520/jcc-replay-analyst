@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>铲铲 AI 教练 · jcc-replay-analyst</title>
+<title>TFT AI Coach · jcc-replay-analyst</title>
 <style>
 :root {
   --bg: #0b0912;
@@ -447,7 +447,7 @@ main {
   position: relative;
 }
 .arch-wrap::before {
-  content: '图 · 双路径共享感知层';
+  content: 'Fig · Dual paths share one perception layer';
   position: absolute;
   top: -1px; left: 28px;
   transform: translateY(-50%);
@@ -943,144 +943,144 @@ main {
 
 <header class="page-header">
   <div class="brand">
-    <span class="brand-seal">鑑</span>
-    <span class="brand-text">铲铲 AI 教练</span>
+    <span class="brand-seal">T</span>
+    <span class="brand-text">TFT AI Coach</span>
   </div>
   <nav class="page-nav">
-    <a href="#what">它是什么</a>
-    <a href="#paths">双入口</a>
-    <a href="#tech">技术架构</a>
-    <a href="#stats">工程数据</a>
-    <a href="#why">为什么合规</a>
-    <a href="#run">怎么跑</a>
+    <a href="#what">What It Is</a>
+    <a href="#paths">Dual Entry</a>
+    <a href="#tech">Architecture</a>
+    <a href="#stats">Engineering</a>
+    <a href="#why">Why Compliant</a>
+    <a href="#run">How To Run</a>
   </nav>
   <div class="page-meta">
-    <span>方案 v0.2</span>
+    <span>Design v0.2</span>
     <span>·</span>
-    <span>S17 · 星神</span>
+    <span>S17 · Space Gods</span>
   </div>
 </header>
 
 <main>
 
-<!-- ═══════════ 卷首 ═══════════ -->
+<!-- ═══════════ PREFACE ═══════════ -->
 <section class="section hero">
-  <div class="hero-chapter">卷 首 · P R E F A C E</div>
+  <div class="hero-chapter">P R E F A C E</div>
   <h1 class="hero-title">
-    <span class="line">金铲铲之战</span>
-    <span class="line indent"><em>AI 教练</em></span>
-    <span class="line indent">实时建议<span class="slash">/</span>赛后复盘</span>
+    <span class="line">Teamfight Tactics</span>
+    <span class="line indent"><em>AI Coach</em></span>
+    <span class="line indent">Real-Time Advice<span class="slash">/</span>Post-Match Review</span>
   </h1>
   <p class="hero-sub">
-    你玩的时候 · 它<strong>在旁边看</strong>；你打完了 · 它<em>写完复盘</em>。<br>
-    只读屏 · 不操作游戏 · 腾讯反外挂感知不到。同一套感知层 · 两条产品路径。
+    While you play, it <strong>watches alongside you</strong>; once the match ends, it <em>writes the review for you</em>.<br>
+    Screen capture only · never touches the game · invisible to Tencent's anti-cheat. One perception layer · two product paths.
   </p>
   <div class="hero-tags">
-    <span>实时 coach · ≤ 3s</span>
-    <span>自动赛后复盘</span>
-    <span>只读屏 · 合规</span>
-    <span>本地 vLLM · 零 API 成本</span>
+    <span>Real-time coach · ≤ 3s</span>
+    <span>Automatic post-match review</span>
+    <span>Screen-only · compliant</span>
+    <span>Local vLLM · zero API cost</span>
   </div>
   <div class="hero-badges">
-    <span><span class="dot"></span>S17 星神 RAG</span>
+    <span><span class="dot"></span>S17 Space Gods RAG</span>
     <span>Qwen3-VL-8B/4B-FP8</span>
-    <span>164 pytest passing · CI 绿</span>
+    <span>164 pytest passing · CI green</span>
     <span>commit 3c1511c</span>
   </div>
 </section>
 
-<!-- ═══════════ 壹 · 它是什么 ═══════════ -->
+<!-- ═══════════ I · What It Is ═══════════ -->
 <section class="section" id="what">
   <div class="section-label">
-    <span class="section-num">壹</span>
+    <span class="section-num">I</span>
     <span class="section-sub">WHAT IS IT</span>
   </div>
 
-  <h2 class="section-title">它是什么</h2>
+  <h2 class="section-title">What It Is</h2>
   <p class="section-intro">
-    市面金铲铲工具只查 <span class="accent">阵容表</span> —— 告诉你"这套强"。这个项目两头补：你<span class="accent-v">玩的时候</span>有人提醒你该选哪个增强 · 要不要升人口 · 装备合给谁；你<span class="accent-c">打完了</span>自动出一份带量化反事实的复盘报告。
+    Existing TFT tools only look up the <span class="accent">comp tier list</span> — they just tell you "this comp is strong." This project fills both ends: <span class="accent-v">while you play</span>, it reminds you which augment to pick · whether to level up · who to give the item to; <span class="accent-c">once you finish</span>, it auto-generates a review report with quantified counterfactuals.
   </p>
 
   <p class="path-bridge">
-    本质是<em>同一套感知层 · 两条产品路径</em>。OBS 虚拟摄像头吃实时 · mp4 录屏吃赛后 · 进共享的 frame_monitor / OCR / VLM / S17 RAG · 出一致的 WorldState · 分叉到<em>实时建议</em>或<em>整局复盘</em>。
+    At its core: <em>one perception layer · two product paths</em>. The OBS virtual camera feeds the real-time path · mp4 recordings feed the post-match path · both flow through a shared frame_monitor / OCR / VLM / S17 RAG · produce a consistent WorldState · then fork into <em>real-time advice</em> or <em>full-match review</em>.
   </p>
 </section>
 
-<!-- ═══════════ 贰 · 双入口 ═══════════ -->
+<!-- ═══════════ II · Dual Entry ═══════════ -->
 <section class="section" id="paths">
   <div class="section-label">
-    <span class="section-num">贰</span>
+    <span class="section-num">II</span>
     <span class="section-sub">DUAL ENTRY</span>
   </div>
 
-  <h2 class="section-title">两条产品路径</h2>
+  <h2 class="section-title">Two Product Paths</h2>
   <p class="section-intro">
-    一条<span class="accent-v">在场</span> · 一条<span class="accent-c">在后</span>。对应"玩的时候想被提醒"与"打完了想复盘"两种真实诉求。
+    One <span class="accent-v">in the moment</span> · one <span class="accent-c">after the fact</span>. They map to two real needs: "I want reminders while I play" and "I want to review after I finish."
   </p>
 
   <div class="path-grid">
-    <!-- 实时 coach -->
+    <!-- real-time coach -->
     <div class="path-card realtime">
-      <div class="path-kind">实 时 · C O A C H</div>
-      <div class="path-name">实时对局建议</div>
+      <div class="path-kind">L I V E · C O A C H</div>
+      <div class="path-name">Real-Time Match Advice</div>
       <div class="path-tagline">whisper beside you while you play</div>
       <div class="path-body">
-        玩家玩的时候 · OBS 把 MuMu 窗口推成<em>虚拟摄像头</em> · Python 持续识别 · 决策点触发 LLM · 建议以半透明卡片淡入到 MuMu 窗口上方 · 8 秒后淡出。
+        While the player is in a match · OBS pipes the MuMu window into a <em>virtual camera</em> · Python recognizes the frames continuously · decision points trigger the LLM · advice fades in as a translucent card above the MuMu window · then fades out after 8 seconds.
       </div>
       <ol class="path-flow">
-        <li><span class="step">i</span><span>OBS Virtual Camera 抓 MuMu 窗口画面</span></li>
-        <li><span class="step">ii</span><span><code>live_tick</code> · fps 2 持续 dHash · ROI diff</span></li>
-        <li><span class="step">iii</span><span>决策点触发 <code>decision_llm</code> · 6 类建议</span></li>
-        <li><span class="step">iv</span><span><code>advice_server</code> WebSocket 广播</span></li>
-        <li><span class="step">v</span><span><code>overlay_ui</code> PyQt 半透明卡片浮现</span></li>
+        <li><span class="step">i</span><span>OBS Virtual Camera grabs the MuMu window</span></li>
+        <li><span class="step">ii</span><span><code>live_tick</code> · fps 2 continuous dHash · ROI diff</span></li>
+        <li><span class="step">iii</span><span>Decision points trigger <code>decision_llm</code> · 6 advice types</span></li>
+        <li><span class="step">iv</span><span><code>advice_server</code> WebSocket broadcast</span></li>
+        <li><span class="step">v</span><span><code>overlay_ui</code> PyQt translucent card appears</span></li>
       </ol>
       <div class="path-meta">
         <span>FPS 2</span>
         <span>decision ≤ 3s</span>
         <span>PyQt6 Overlay</span>
-        <span>Windows 原生</span>
+        <span>Windows native</span>
       </div>
     </div>
 
-    <!-- 赛后复盘 -->
+    <!-- post-match review -->
     <div class="path-card replay">
-      <div class="path-kind">赛 后 · R E P L A Y</div>
-      <div class="path-name">自动赛后复盘</div>
+      <div class="path-kind">P O S T · R E P L A Y</div>
+      <div class="path-name">Automatic Post-Match Review</div>
       <div class="path-tagline">postmortem without pressing record</div>
       <div class="path-body">
-        对局结束自动合成整局复盘报告 —— <em>不需要手动录屏</em>。也支持事后把 mp4 丢进 CLI · 抽帧走同一套 pipeline · 吐 markdown / json / HTML 三种形态。
+        When the match ends, it auto-synthesizes a full-match review report — <em>no manual screen recording required</em>. You can also drop an mp4 into the CLI afterward · frames are extracted through the same pipeline · output in three formats: markdown / json / HTML.
       </div>
       <ol class="path-flow">
-        <li><span class="step">i</span><span>对局内采集的帧序列 / 事后 mp4 或截图组</span></li>
-        <li><span class="step">ii</span><span><code>frame_monitor</code> region diff · 抽 ~34 关键帧</span></li>
-        <li><span class="step">iii</span><span>OCR + CV + VLM 并行 → WorldState</span></li>
-        <li><span class="step">iv</span><span><code>llm_analyzer</code> · S17 RAG · 量化反事实</span></li>
-        <li><span class="step">v</span><span><code>MatchReport</code> → md / json / html 三出</span></li>
+        <li><span class="step">i</span><span>Frame sequence captured in-match / an mp4 or screenshot set after the fact</span></li>
+        <li><span class="step">ii</span><span><code>frame_monitor</code> region diff · extracts ~34 key frames</span></li>
+        <li><span class="step">iii</span><span>OCR + CV + VLM in parallel → WorldState</span></li>
+        <li><span class="step">iv</span><span><code>llm_analyzer</code> · S17 RAG · quantified counterfactuals</span></li>
+        <li><span class="step">v</span><span><code>MatchReport</code> → md / json / html three outputs</span></li>
       </ol>
       <div class="path-meta">
-        <span>50s / 局</span>
+        <span>50s / match</span>
         <span>md · json · html</span>
-        <span>量化反事实</span>
-        <span>WSL / Windows 通吃</span>
+        <span>quantified counterfactuals</span>
+        <span>WSL / Windows both</span>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════ 叁 · 技术架构 ═══════════ -->
+<!-- ═══════════ III · Architecture ═══════════ -->
 <section class="section" id="tech">
   <div class="section-label">
-    <span class="section-num">叁</span>
+    <span class="section-num">III</span>
     <span class="section-sub">ARCHITECTURE</span>
   </div>
 
-  <h2 class="section-title">技术架构</h2>
+  <h2 class="section-title">Technical Architecture</h2>
   <p class="section-intro">
-    两条产品路径共用一套感知层。数据源二选一 · 感知层统一 · 分析层按需分叉。设计目标：让<span class="accent">专精模型做专精事</span> —— 各层独立失败互不污染。
+    Both product paths share one perception layer. Pick one of two data sources · unified perception layer · analysis layer forks on demand. Design goal: <span class="accent">let specialized models do specialized work</span> — each layer fails independently without contaminating the others.
   </p>
 
   <div class="arch-wrap">
-    <svg class="arch-svg" viewBox="0 0 880 560" preserveAspectRatio="xMidYMid meet" aria-label="双路径架构图">
+    <svg class="arch-svg" viewBox="0 0 880 560" preserveAspectRatio="xMidYMid meet" aria-label="Dual-path architecture diagram">
       <defs>
         <marker id="ah-gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
           <path d="M0 0 L10 5 L0 10 z" class="arrow-head"/>
@@ -1096,212 +1096,212 @@ main {
         </marker>
       </defs>
 
-      <!-- 第 ①层 数据源 -->
-      <text class="node-title" x="215" y="24" text-anchor="middle">数 据 源</text>
+      <!-- Layer ① data source -->
+      <text class="node-title" x="215" y="24" text-anchor="middle">D A T A   S O U R C E</text>
       <rect class="node-box source-live" x="65" y="36" width="300" height="58" rx="1"/>
       <text class="node-text" x="215" y="62" text-anchor="middle">OBS Virtual Camera</text>
-      <text class="node-sub" x="215" y="80" text-anchor="middle">实时 coach · Windows 原生 · fps 2</text>
+      <text class="node-sub" x="215" y="80" text-anchor="middle">real-time coach · Windows native · fps 2</text>
 
       <rect class="node-box source-replay" x="515" y="36" width="300" height="58" rx="1"/>
-      <text class="node-text" x="665" y="62" text-anchor="middle">mp4 录屏 / 截图序列</text>
-      <text class="node-sub" x="665" y="80" text-anchor="middle">赛后复盘 · WSL / Windows 通吃</text>
+      <text class="node-text" x="665" y="62" text-anchor="middle">mp4 recording / screenshot sequence</text>
+      <text class="node-sub" x="665" y="80" text-anchor="middle">post-match review · WSL / Windows both</text>
 
       <path class="arrow live" d="M215 94 L215 128" marker-end="url(#ah-v)"/>
       <path class="arrow replay" d="M665 94 L665 128" marker-end="url(#ah-c)"/>
 
-      <!-- 第 ②层 共享感知 -->
+      <!-- Layer ② shared perception -->
       <rect class="node-box shared" x="65" y="128" width="750" height="110" rx="1"/>
-      <text class="node-title" x="440" y="152" text-anchor="middle">共 享 感 知 层 · → WorldState</text>
+      <text class="node-title" x="440" y="152" text-anchor="middle">S H A R E D   P E R C E P T I O N   L A Y E R · → WorldState</text>
       <rect class="node-box" x="90" y="170" width="170" height="56" rx="1"/>
       <text class="node-text" x="175" y="194" text-anchor="middle">frame_monitor</text>
-      <text class="node-sub" x="175" y="212" text-anchor="middle">dHash 关键帧 · ROI diff</text>
+      <text class="node-sub" x="175" y="212" text-anchor="middle">dHash key frames · ROI diff</text>
 
       <rect class="node-box" x="280" y="170" width="170" height="56" rx="1"/>
       <text class="node-text" x="365" y="194" text-anchor="middle">PaddleOCR</text>
-      <text class="node-sub" x="365" y="212" text-anchor="middle">HP · 金币 · 等级 · 连胜</text>
+      <text class="node-sub" x="365" y="212" text-anchor="middle">HP · gold · level · win streak</text>
 
       <rect class="node-box" x="470" y="170" width="170" height="56" rx="1"/>
       <text class="node-text" x="555" y="194" text-anchor="middle">OpenCV</text>
-      <text class="node-sub" x="555" y="212" text-anchor="middle">棋子 · 装备 · 符文框</text>
+      <text class="node-sub" x="555" y="212" text-anchor="middle">units · items · augment boxes</text>
 
       <rect class="node-box" x="660" y="170" width="140" height="56" rx="1"/>
       <text class="node-text" x="730" y="194" text-anchor="middle">Qwen3-VL</text>
-      <text class="node-sub" x="730" y="212" text-anchor="middle">羁绊 · 阵容语义</text>
+      <text class="node-sub" x="730" y="212" text-anchor="middle">trait · comp semantics</text>
 
-      <!-- S17 知识库 -->
+      <!-- S17 knowledge base -->
       <rect class="node-box kb" x="30" y="262" width="140" height="70" rx="1"/>
       <text class="node-title" x="100" y="286" text-anchor="middle" fill="#9c7a3c">S17 RAG</text>
-      <text class="node-sub" x="100" y="304" text-anchor="middle">jcc-daida · 星神</text>
+      <text class="node-sub" x="100" y="304" text-anchor="middle">jcc-daida · Space Gods</text>
       <text class="node-sub" x="100" y="320" text-anchor="middle">73 / 37 / 591 / 10</text>
 
-      <!-- 分叉线 -->
+      <!-- fork lines -->
       <path class="arrow live" d="M280 238 L280 262 L215 262 L215 298 L215 330" marker-end="url(#ah-v)"/>
       <path class="arrow replay" d="M600 238 L600 262 L665 262 L665 298 L665 330" marker-end="url(#ah-c)"/>
       <path class="arrow kb" d="M170 297 L200 297" marker-end="url(#ah-o)"/>
       <path class="arrow kb" d="M170 297 L650 297" marker-end="url(#ah-o)"/>
 
-      <!-- 第 ③层 分析分叉 -->
+      <!-- Layer ③ analysis fork -->
       <rect class="node-box source-live" x="65" y="330" width="300" height="96" rx="1"/>
-      <text class="node-title" x="215" y="352" text-anchor="middle" fill="#d55a3f">实 时 · L I V E</text>
+      <text class="node-title" x="215" y="352" text-anchor="middle" fill="#d55a3f">R E A L - T I M E · L I V E</text>
       <text class="node-text" x="215" y="376" text-anchor="middle">decision_llm</text>
-      <text class="node-sub" x="215" y="394" text-anchor="middle">6 类决策点 · 目标 ≤ 3s</text>
-      <text class="node-sub" x="215" y="410" text-anchor="middle">增强 / 升级 / 合装备 / D 不 D</text>
+      <text class="node-sub" x="215" y="394" text-anchor="middle">6 decision points · target ≤ 3s</text>
+      <text class="node-sub" x="215" y="410" text-anchor="middle">augment / level / item / roll-or-not</text>
 
       <rect class="node-box source-replay" x="515" y="330" width="300" height="96" rx="1"/>
-      <text class="node-title" x="665" y="352" text-anchor="middle" fill="#7fae9c">赛 后 · R E P L A Y</text>
+      <text class="node-title" x="665" y="352" text-anchor="middle" fill="#7fae9c">P O S T - M A T C H · R E P L A Y</text>
       <text class="node-text" x="665" y="376" text-anchor="middle">llm_analyzer</text>
-      <text class="node-sub" x="665" y="394" text-anchor="middle">整局合成 · 量化反事实</text>
-      <text class="node-sub" x="665" y="410" text-anchor="middle">5 类决策评分 + AI 总评</text>
+      <text class="node-sub" x="665" y="394" text-anchor="middle">full-match synthesis · quantified counterfactuals</text>
+      <text class="node-sub" x="665" y="410" text-anchor="middle">5 decision-type scores + AI overall verdict</text>
 
       <path class="arrow live" d="M215 426 L215 462" marker-end="url(#ah-v)"/>
       <path class="arrow replay" d="M665 426 L665 462" marker-end="url(#ah-c)"/>
 
-      <!-- 第 ④层 输出 -->
+      <!-- Layer ④ output -->
       <rect class="node-box output-live" x="65" y="462" width="300" height="68" rx="1"/>
       <text class="node-text" x="215" y="488" text-anchor="middle">advice_server → overlay_ui</text>
-      <text class="node-sub" x="215" y="506" text-anchor="middle">WebSocket · PyQt 半透明卡片</text>
-      <text class="node-sub" x="215" y="522" text-anchor="middle">8s 淡入淡出 · 不拦截点击</text>
+      <text class="node-sub" x="215" y="506" text-anchor="middle">WebSocket · PyQt translucent card</text>
+      <text class="node-sub" x="215" y="522" text-anchor="middle">8s fade in/out · click-through</text>
 
       <rect class="node-box output-replay" x="515" y="462" width="300" height="68" rx="1"/>
       <text class="node-text" x="665" y="488" text-anchor="middle">MatchReport</text>
       <text class="node-sub" x="665" y="506" text-anchor="middle">markdown / json / html</text>
-      <text class="node-sub" x="665" y="522" text-anchor="middle">reports/ 自动归档</text>
+      <text class="node-sub" x="665" y="522" text-anchor="middle">reports/ auto-archived</text>
 
       <!-- legend -->
-      <text class="path-legend" x="440" y="552" text-anchor="middle">朱砂 实时路径　·　青瓷 复盘路径　·　赭石虚线 S17 知识注入</text>
+      <text class="path-legend" x="440" y="552" text-anchor="middle">vermilion = real-time path　·　celadon = review path　·　ochre dashed = S17 knowledge injection</text>
     </svg>
   </div>
 
   <table class="layer-table">
     <thead>
       <tr>
-        <th>层 · 代码</th>
-        <th>做什么</th>
-        <th>为什么不全交给 VLM</th>
+        <th>Layer · Code</th>
+        <th>What It Does</th>
+        <th>Why Not Hand It All To The VLM</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>OCR 层<br><code>ocr_client.py · PaddleOCR</code></td>
-        <td class="role">读 HP · 金币 · 等级 · 连胜数的中文数字</td>
-        <td class="why">实测 Qwen2.5-VL 读 HP 常错 1-2 · 数据分析致命。OCR 稳定 99%+ · 失败模式也可预测。</td>
+        <td>OCR layer<br><code>ocr_client.py · PaddleOCR</code></td>
+        <td class="role">Reads the numbers for HP · gold · level · win streak</td>
+        <td class="why">In testing, Qwen2.5-VL often misreads HP by 1-2 · fatal for data analysis. OCR is a stable 99%+ · and its failure modes are predictable.</td>
       </tr>
       <tr>
-        <td>CV 层<br><code>arrow_finder.py · OpenCV</code></td>
-        <td class="role">找装备图标 · 棋子位 · 高亮 UI 元素中心</td>
-        <td class="why">颜色阈值 + 形状匹配 30 行代码够用 · 比 VLM 快一个数量级 · 也不会"幻觉"出不存在的图标。</td>
+        <td>CV layer<br><code>arrow_finder.py · OpenCV</code></td>
+        <td class="role">Finds item icons · unit positions · the center of highlighted UI elements</td>
+        <td class="why">Color thresholding + shape matching in 30 lines is enough · an order of magnitude faster than the VLM · and it won't "hallucinate" icons that aren't there.</td>
       </tr>
       <tr>
-        <td>VLM 层<br><code>vlm_client.py · Qwen3-VL-8B/4B-FP8</code></td>
-        <td class="role">羁绊语义 · 对手阵容分类 · 教程引导文字</td>
-        <td class="why">把 VLM 留给它真正擅长的语义任务 · 不让它读它做不好的数字。显存紧张就降到 4B-FP8。</td>
+        <td>VLM layer<br><code>vlm_client.py · Qwen3-VL-8B/4B-FP8</code></td>
+        <td class="role">Trait semantics · opponent comp classification · tutorial guidance text</td>
+        <td class="why">Keep the VLM for the semantic tasks it's genuinely good at · don't make it read numbers it handles poorly. When VRAM is tight, drop to 4B-FP8.</td>
       </tr>
       <tr>
-        <td>分析层<br><code>llm_analyzer.py · decision_llm.py</code></td>
-        <td class="role">实时 6 类决策 / 赛后整局合成 · 量化反事实</td>
-        <td class="why">需要 S17 版本知识 RAG · 默认本地 vLLM 零 API 成本。赛季更新只换 RAG · 不重训模型。</td>
+        <td>Analysis layer<br><code>llm_analyzer.py · decision_llm.py</code></td>
+        <td class="role">Real-time 6 decision types / post-match full synthesis · quantified counterfactuals</td>
+        <td class="why">Needs S17 patch-knowledge RAG · defaults to local vLLM at zero API cost. A new season only swaps the RAG · no model retraining.</td>
       </tr>
     </tbody>
   </table>
 
   <div class="design-choice">
-    <div class="choice-title">为什么混合 · 不押单一大模型</div>
+    <div class="choice-title">Why a Hybrid, Not a Bet on a Single Large Model</div>
     <p>
-      实测 Qwen2.5-VL-7B 看 HP 经常错 <em>1-2</em>。换 Qwen3-VL-8B-FP8 精度够 · 但 <em>16 GB 显存装不下 + MuMu 模拟器</em> · 降到 Qwen3-VL-4B-FP8 是显存敏感方案。最终 —— <em class="accent">专精模型做专精事 · 各层独立失败</em> —— 比押注单一大 VLM 稳得多。这个架构判断本身就值得写进简历。
+      In testing, Qwen2.5-VL-7B frequently misreads HP by <em>1-2</em>. Switching to Qwen3-VL-8B-FP8 is accurate enough · but <em>16 GB of VRAM can't fit it alongside the MuMu emulator</em> · so dropping to Qwen3-VL-4B-FP8 is the VRAM-sensitive option. In the end — <em class="accent">specialized models do specialized work · each layer fails independently</em> — far more robust than betting on a single large VLM. This architectural judgment is itself worth putting on a resume.
     </p>
   </div>
 </section>
 
-<!-- ═══════════ 肆 · 工程数据 ═══════════ -->
+<!-- ═══════════ IV · Engineering Data ═══════════ -->
 <section class="section" id="stats">
   <div class="section-label">
-    <span class="section-num">肆</span>
+    <span class="section-num">IV</span>
     <span class="section-sub">ENGINEERING</span>
   </div>
 
-  <h2 class="section-title">工程数据</h2>
+  <h2 class="section-title">Engineering Data</h2>
   <p class="section-intro">
-    不是 demo video · 是一个<span class="accent">能跑通的工程</span>。测试 · CI · 知识库 · 延迟目标 —— 各项都有实数。
+    Not a demo video · a <span class="accent">project that actually runs end to end</span>. Tests · CI · knowledge base · latency targets — every item has real numbers.
   </p>
 
   <div class="stat-grid">
     <div class="stat">
-      <div class="stat-num">164<sub>例</sub></div>
+      <div class="stat-num">164<sub>cases</sub></div>
       <div class="stat-label">Pytest Passing</div>
       <div class="stat-meta">CI · green</div>
     </div>
     <div class="stat">
       <div class="stat-num">6.2<sub>K</sub></div>
       <div class="stat-label">LOC · src + tests</div>
-      <div class="stat-meta">Python · 含测试</div>
+      <div class="stat-meta">Python · incl. tests</div>
     </div>
     <div class="stat">
       <div class="stat-num">50<sub>s</sub></div>
-      <div class="stat-label">一局复盘延迟</div>
+      <div class="stat-label">Per-match review latency</div>
       <div class="stat-meta">e2e smoke · end-to-end</div>
     </div>
     <div class="stat">
       <div class="stat-num small">≤ 3s</div>
-      <div class="stat-label">实时决策延迟目标</div>
-      <div class="stat-meta">decision_llm · 6 类</div>
+      <div class="stat-label">Real-time decision latency target</div>
+      <div class="stat-meta">decision_llm · 6 types</div>
     </div>
   </div>
 
   <div class="kb-row">
     <div class="kb-cell">
       <div class="kb-num">73</div>
-      <div class="kb-label">英 雄 · UNITS</div>
+      <div class="kb-label">UNITS</div>
     </div>
     <div class="kb-cell">
       <div class="kb-num">37</div>
-      <div class="kb-label">羁 绊 · TRAITS</div>
+      <div class="kb-label">TRAITS</div>
     </div>
     <div class="kb-cell">
       <div class="kb-num">591</div>
-      <div class="kb-label">装 备 · ITEMS</div>
+      <div class="kb-label">ITEMS</div>
     </div>
     <div class="kb-cell">
       <div class="kb-num">10</div>
-      <div class="kb-label">梯 队 阵 容 · COMPS</div>
+      <div class="kb-label">META COMPS</div>
     </div>
   </div>
   <p class="kb-note">
-    S17 <em style="font-style:normal;color:var(--gold)">星神 / Space Gods</em> 知识库从 <code>jcc-daida</code> 实时同步 · 阵容按 <code>lolchess top4_rate</code> 排序 · <code>KnowledgeProvider</code> 注入两条路径 · 赛季更新只换 RAG · 代码不改。
+    The S17 <em style="font-style:normal;color:var(--gold)">Space Gods</em> knowledge base syncs live from <code>jcc-daida</code> · comps sorted by <code>lolchess top4_rate</code> · <code>KnowledgeProvider</code> injects into both paths · a new season only swaps the RAG · no code changes.
   </p>
 </section>
 
-<!-- ═══════════ 伍 · 为什么合规 ═══════════ -->
+<!-- ═══════════ V · Why Compliant ═══════════ -->
 <section class="section" id="why">
   <div class="section-label">
-    <span class="section-num">伍</span>
+    <span class="section-num">V</span>
     <span class="section-sub">COMPLIANCE</span>
   </div>
 
-  <h2 class="section-title">为什么腾讯感知不到</h2>
+  <h2 class="section-title">Why Tencent Can't Detect It</h2>
   <p class="section-intro">
-    这不是"代打换皮"。从数据源到执行面都<span class="accent-c">刻意远离游戏进程</span> —— 腾讯反外挂看不到异常 · 简历能正面写。
+    This is not "boosting with a new skin." From the data source to the execution surface, it <span class="accent-c">deliberately stays away from the game process</span> — Tencent's anti-cheat sees nothing abnormal · and you can put it on a resume with a clear conscience.
   </p>
 
   <div class="diff-grid">
     <div class="diff-cell">
-      <div class="diff-head">只读屏</div>
+      <div class="diff-head">Screen Only</div>
       <div class="diff-sub">read-only capture</div>
       <div class="diff-body">
-        数据源是 <em>OBS 虚拟摄像头</em> · 本质是另一路视频流。<em>不挂钩游戏进程 · 不读游戏内存 · 不发任何输入指令</em>。所有操作仍由玩家本人完成。
+        The data source is the <em>OBS virtual camera</em> · essentially just another video stream. <em>No hooking into the game process · no reading game memory · no sending any input commands</em>. Every action is still performed by the player themselves.
       </div>
     </div>
     <div class="diff-cell">
-      <div class="diff-head">本地推</div>
+      <div class="diff-head">Local Inference</div>
       <div class="diff-sub">local vLLM first</div>
       <div class="diff-body">
-        感知 / 分析 / 决策共用一个本地 vLLM 实例 · 默认<em>零 API 成本 · 零网络依赖</em>。想接云端写一个 <code style="font-family:var(--font-mono);color:var(--gold-soft);font-size:11px">CloudLLMAnalyzer</code> 替换就行 · 接口不变。
+        Perception / analysis / decision share a single local vLLM instance · with <em>zero API cost · zero network dependency</em> by default. To go cloud, just write a <code style="font-family:var(--font-mono);color:var(--gold-soft);font-size:11px">CloudLLMAnalyzer</code> drop-in · the interface stays the same.
       </div>
     </div>
     <div class="diff-cell">
-      <div class="diff-head">不碰 Android</div>
+      <div class="diff-head">No Android</div>
       <div class="diff-sub">no adb / no hook</div>
       <div class="diff-body">
-        数据源阶段曾经用过 ADB 截屏 —— 现已<em>整层替换为 OBS 虚拟摄像头</em>。<em>不接 Android 侧</em> · 不用 scrcpy · 不用 accessibility · 模拟器认为自己只是在被录。
+        The data-source stage once used ADB screen capture — that whole layer has now been <em>replaced with the OBS virtual camera</em>. <em>No connection to the Android side</em> · no scrcpy · no accessibility · the emulator thinks it is merely being recorded.
       </div>
     </div>
   </div>
@@ -1309,74 +1309,74 @@ main {
   <div class="compliance-stack">
     <div class="compliance-title">C O M P L I A N C E   S T A C K</div>
     <ul class="compliance-list">
-      <li>OBS Virtual Camera <em>只摄不控</em> · 和直播软件同类</li>
-      <li>Python 端只拿视频流 · <em>不触 MuMu 进程</em></li>
-      <li>PyQt overlay <em>click-through</em> · 不拦截点击</li>
-      <li>无 ADB / scrcpy / Accessibility / Frida</li>
-      <li>无输入注入 · <em>最终操作仍是玩家点屏幕</em></li>
-      <li class="bad">不做自动化 · 不做点击 · 不做寻路</li>
+      <li>OBS Virtual Camera <em>captures only, never controls</em> · same category as streaming software</li>
+      <li>The Python side only takes the video stream · <em>never touches the MuMu process</em></li>
+      <li>PyQt overlay is <em>click-through</em> · doesn't intercept clicks</li>
+      <li>No ADB / scrcpy / Accessibility / Frida</li>
+      <li>No input injection · <em>the final action is still the player tapping the screen</em></li>
+      <li class="bad">No automation · no auto-clicking · no pathing</li>
     </ul>
   </div>
 </section>
 
-<!-- ═══════════ 陆 · 怎么跑 ═══════════ -->
+<!-- ═══════════ VI · How To Run ═══════════ -->
 <section class="section" id="run">
   <div class="section-label">
-    <span class="section-num">陆</span>
+    <span class="section-num">VI</span>
     <span class="section-sub">HOW TO RUN</span>
   </div>
 
-  <h2 class="section-title">怎么跑通</h2>
+  <h2 class="section-title">How To Run It</h2>
   <p class="section-intro">
-    最短路径 —— 不需要 OBS · 不需要 Windows · 在 WSL 里跑通全链路 · 50 秒内出一份 HTML 复盘。想上实时 coach 再走 Windows 四终端。
+    Shortest path — no OBS · no Windows · run the full chain inside WSL · get an HTML review in under 50 seconds. Want the real-time coach? Then go the Windows four-terminal route.
   </p>
 
   <div class="run-grid">
     <div class="run-block">
-      <div class="run-head">赛 后 复 盘</div>
+      <div class="run-head">P O S T - M A T C H   R E V I E W</div>
       <div class="run-sub">WSL · one-liner · end-to-end smoke</div>
-<pre class="run-code"><span class="c"># 装依赖</span>
+<pre class="run-code"><span class="c"># install dependencies</span>
 pip install -r requirements.txt
 
-<span class="c"># 端到端 smoke · 50s 出 HTML 复盘</span>
+<span class="c"># end-to-end smoke · HTML review in 50s</span>
 python3 scripts/e2e_smoke.py
 <span class="c"># → /tmp/e2e_smoke_report.html (≈ 18 KB)</span>
 
-<span class="c"># 或者从真 mp4 录屏抽帧分析</span>
+<span class="c"># or analyze frames extracted from a real mp4 recording</span>
 python scripts/analyze.py \
   --video match.mp4 --every-s 5 \
   --vlm real --llm real \
   --out report.md</pre>
       <p class="run-note">
-        vLLM 可用就真跑 5 类 decisionLLM + 整局合成；不可用自动 fallback · pipeline 仍然跑通。
+        If vLLM is available, it really runs the 5 decisionLLM types + full-match synthesis; if not, it falls back automatically · the pipeline still runs end to end.
       </p>
     </div>
 
     <div class="run-block">
-      <div class="run-head">实 时 教 练</div>
-      <div class="run-sub">Windows 原生 · 四终端 · OBS 前置</div>
-<pre class="run-code"><span class="c"># T1 · WSL · 启 vLLM（感知+分析+决策共用）</span>
+      <div class="run-head">R E A L - T I M E   C O A C H</div>
+      <div class="run-sub">Windows native · four terminals · OBS prerequisite</div>
+<pre class="run-code"><span class="c"># T1 · WSL · start vLLM (shared by perception+analysis+decision)</span>
 python -m vllm.entrypoints.openai.api_server \
   --model /path/to/Qwen3-VL-4B-FP8 --port 8000
 
-<span class="c"># T2 · advice 广播服务</span>
+<span class="c"># T2 · advice broadcast service</span>
 python -m src.advice_server --port 8765
 
 <span class="c"># T3 · Windows · OBS virtual cam + tick</span>
 python -m src.live_tick --fps 2 \
   --advice-server http://localhost:8765
 
-<span class="c"># T4 · Windows · PyQt overlay 半透明卡片</span>
+<span class="c"># T4 · Windows · PyQt overlay translucent card</span>
 python -m src.overlay_ui \
   --ws-url ws://localhost:8765/ws/advice</pre>
       <p class="run-note">
-        前置：OBS Studio · Window Capture 抓 MuMu · Start Virtual Camera。overlay 自动找 MuMu 主窗口并贴边 · 决策点触发淡入 · 8 秒淡出。
+        Prerequisites: OBS Studio · Window Capture grabbing MuMu · Start Virtual Camera. The overlay auto-finds the MuMu main window and snaps to its edge · fades in on a decision point · fades out after 8 seconds.
       </p>
     </div>
   </div>
 
   <div class="links-row">
-    <div class="links-title">更 多 文 档</div>
+    <div class="links-title">M O R E   D O C S</div>
     <div class="links-body">
       <a href="../README.md">README.md</a>
       <a href="../examples/sample_report.md">sample_report.md</a>
@@ -1387,53 +1387,53 @@ python -m src.overlay_ui \
   </div>
 </section>
 
-<!-- ═══════════ 卷末 · 作者 ═══════════ -->
+<!-- ═══════════ COLOPHON · Author ═══════════ -->
 <section class="section">
   <div class="section-label">
-    <span class="section-num">卷末</span>
+    <span class="section-num">Fin</span>
     <span class="section-sub">COLOPHON</span>
   </div>
 
-  <h2 class="section-title">作者与意图</h2>
+  <h2 class="section-title">Author & Intent</h2>
   <p class="section-intro">
-    这是一个<span class="accent">校招作品集</span>项目。不是 toy · 不是 demo video · 是一个两个月里一边打磨一边写测试的真实工程 —— 希望作为<span class="accent">系统策划 + AI 应用</span>方向的一次完整表达。
+    This is a <span class="accent">campus-recruiting portfolio</span> project. Not a toy · not a demo video · a real engineering effort built over two months, polished and tested in parallel — meant as a complete statement in the direction of <span class="accent">systems design + AI applications</span>.
   </p>
 
   <div class="outro-grid">
     <div class="outro-block">
-      <div class="outro-head">作 者</div>
+      <div class="outro-head">A U T H O R</div>
       <div class="outro-body">
-        <strong>徐雲鵬</strong> · 21 岁 · 系统策划 + 独立开发者<br>
-        上海交通职业技术学院 · <em>2026 届毕业</em><br>
-        求职方向：<strong>大厂 AI / Agent 应用 / 游戏策划</strong><br><br>
-        现觅界实习（上海 · 仙侠卡牌 RPG）<br>
-        负责修炼 / 功法系统<br><br>
+        <strong>Xu Yunpeng</strong> · 21 · systems designer + indie developer<br>
+        Shanghai Jiao Tong Vocational & Technical College · <em>Class of 2026</em><br>
+        Target roles: <strong>AI / agent applications at major studios / game design</strong><br><br>
+        Currently interning at Mijie (Shanghai · xianxia card-battler RPG)<br>
+        Owns the cultivation / techniques systems<br><br>
         <a href="https://huannan.top">huannan.top</a><br>
         <a href="https://github.com/HuanNan520">github.com/HuanNan520</a>
       </div>
     </div>
     <div class="outro-block">
-      <div class="outro-head">技 术 栈</div>
+      <div class="outro-head">T E C H   S T A C K</div>
       <div class="outro-body">
-        <em>感知</em>：<code>PaddleOCR</code> · <code>OpenCV</code> · <code>dHash</code><br>
-        <em>VLM</em>：本地 <code>vLLM</code> + <code>Qwen3-VL-8B / 4B-FP8</code><br>
-        <em>LLM</em>：同实例复用 · <code>guided_json</code><br>
-        <em>服务</em>：<code>FastAPI</code> + <code>WebSocket</code><br>
-        <em>UI</em>：<code>PyQt6</code> 半透明 overlay<br>
-        <em>知识</em>：<code>jcc-daida</code> S17 RAG<br>
-        <em>测试</em>：<code>pytest</code> 164 例 · GitHub Actions
+        <em>Perception</em>: <code>PaddleOCR</code> · <code>OpenCV</code> · <code>dHash</code><br>
+        <em>VLM</em>: local <code>vLLM</code> + <code>Qwen3-VL-8B / 4B-FP8</code><br>
+        <em>LLM</em>: same instance reused · <code>guided_json</code><br>
+        <em>Services</em>: <code>FastAPI</code> + <code>WebSocket</code><br>
+        <em>UI</em>: <code>PyQt6</code> translucent overlay<br>
+        <em>Knowledge</em>: <code>jcc-daida</code> S17 RAG<br>
+        <em>Tests</em>: <code>pytest</code> 164 cases · GitHub Actions
       </div>
     </div>
     <div class="outro-block">
-      <div class="outro-head">当 前 状 态</div>
+      <div class="outro-head">C U R R E N T   S T A T U S</div>
       <div class="outro-body">
-        <em>复盘 MVP</em> · done · e2e smoke 跑通<br>
-        <em>实时 coach</em> · B 阶段进行中<br>
-        B1 OBS 虚拟摄像头 · B2 tick + 归集<br>
-        B3 决策 LLM · B4 广播 · B5 overlay<br><br>
+        <em>Review MVP</em> · done · e2e smoke passing<br>
+        <em>Real-time coach</em> · Phase B in progress<br>
+        B1 OBS virtual camera · B2 tick + aggregation<br>
+        B3 decision LLM · B4 broadcast · B5 overlay<br><br>
         <strong>commit</strong> <code>3c1511c</code> main<br>
         <strong>CI</strong> green · <strong>pytest</strong> 164 passing<br>
-        <strong>知识库</strong> S17 · 星神 · 10 套梯队
+        <strong>Knowledge base</strong> S17 · Space Gods · 10 meta comps
       </div>
     </div>
   </div>
@@ -1442,9 +1442,9 @@ python -m src.overlay_ui \
 </main>
 
 <footer class="page-footer">
-  <span>© 2026 徐雲鵬 · 铲铲 AI 教练 · jcc-replay-analyst</span>
-  <span>本页作品集展示 · 不是任何一款发行产品的营销页</span>
-  <span><code>v0.2 · S17 星神 · 2026-04-22</code></span>
+  <span>© 2026 Xu Yunpeng · TFT AI Coach · jcc-replay-analyst</span>
+  <span>Portfolio showcase page · not a marketing page for any shipped product</span>
+  <span><code>v0.2 · S17 Space Gods · 2026-04-22</code></span>
 </footer>
 
 </body>

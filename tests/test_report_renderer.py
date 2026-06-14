@@ -1,15 +1,15 @@
 """tests/test_report_renderer.py
-单元测试 · src/report_renderer.py
+Unit tests · src/report_renderer.py
 
-覆盖：
-1. render_report_html 能生成 > 2000 字符的合法 HTML · 含 <!DOCTYPE html> · 含 match_id
-2. 边界：empty key_rounds · 不崩
-3. 各 grade (优/可/差) 都有对应 CSS class
-4. 多段 summary 换行正常渲染
-5. HTML 特殊字符被正确转义
-6. 含 rank_tier 时出现在输出中
-7. HTML 结构完整（包含 head / body / footer）
-8. duration_s 格式化正确
+Coverage:
+1. render_report_html produces valid HTML > 2000 chars · with <!DOCTYPE html> · with match_id
+2. boundary: empty key_rounds · no crash
+3. each grade (优/可/差) has a corresponding CSS class
+4. multi-paragraph summary renders line breaks correctly
+5. HTML special characters are properly escaped
+6. when rank_tier is set, it appears in the output
+7. complete HTML structure (includes head / body / footer)
+8. duration_s is formatted correctly
 """
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ from src.report_renderer import render_report_html
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试固件
+# Fixtures
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _full_report(match_id: str = "TFT-S17-test-001") -> MatchReport:
-    """含完整字段的 MatchReport。"""
+    """A MatchReport with all fields populated."""
     return MatchReport(
         match_id=match_id,
         rank_tier="钻石 I",
@@ -63,7 +63,7 @@ def _full_report(match_id: str = "TFT-S17-test-001") -> MatchReport:
 
 
 def _empty_rounds_report() -> MatchReport:
-    """key_rounds 为空的 MatchReport。"""
+    """A MatchReport with empty key_rounds."""
     return MatchReport(
         match_id="TFT-S17-empty-rounds",
         final_rank=5,
@@ -75,13 +75,13 @@ def _empty_rounds_report() -> MatchReport:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 1 · 基本合法性：长度 · DOCTYPE · match_id
+# Test 1 · basic validity: length · DOCTYPE · match_id
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestBasicValidity:
     def test_output_is_long_enough(self):
         html = render_report_html(_full_report())
-        assert len(html) > 2000, f"HTML 太短：{len(html)} 字符"
+        assert len(html) > 2000, f"HTML too short: {len(html)} chars"
 
     def test_doctype_present(self):
         html = render_report_html(_full_report())
@@ -109,15 +109,15 @@ class TestBasicValidity:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 2 · 边界：empty key_rounds
+# Test 2 · boundary: empty key_rounds
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestEmptyRounds:
     def test_empty_rounds_does_not_crash(self):
         report = _empty_rounds_report()
-        # 不应抛出任何异常
+        # should not raise any exception
         html = render_report_html(report)
-        assert html  # 非空
+        assert html  # non-empty
 
     def test_empty_rounds_html_still_valid(self):
         html = render_report_html(_empty_rounds_report())
@@ -134,7 +134,7 @@ class TestEmptyRounds:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 3 · grade CSS class
+# Test 3 · grade CSS class
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestGradeCssClasses:
@@ -176,7 +176,7 @@ class TestGradeCssClasses:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 4 · summary 换行渲染
+# Test 4 · summary line-break rendering
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestSummaryParagraphs:
@@ -190,18 +190,18 @@ class TestSummaryParagraphs:
             summary="第一段总评内容。\n第二段改进建议。",
         )
         html = render_report_html(report)
-        # 两段文字都应出现
+        # both paragraphs should appear
         assert "第一段总评内容。" in html
         assert "第二段改进建议。" in html
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 5 · HTML 特殊字符转义
+# Test 5 · HTML special-character escaping
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestHtmlEscaping:
     def test_special_chars_in_match_id_escaped(self):
-        # match_id 含 < > & —— 应被转义
+        # match_id contains < > & —— should be escaped
         report = MatchReport(
             match_id="TFT-<>&-test",
             final_rank=4,
@@ -211,7 +211,7 @@ class TestHtmlEscaping:
             summary="转义测试。",
         )
         html = render_report_html(report)
-        # 转义后 < → &lt; 等
+        # after escaping, < -> &lt; etc.
         assert "TFT-&lt;&gt;&amp;-test" in html
 
     def test_special_chars_in_comment_escaped(self):
@@ -232,13 +232,13 @@ class TestHtmlEscaping:
             summary="安全测试。",
         )
         html = render_report_html(report)
-        # script 标签应被转义
+        # the script tag should be escaped
         assert "<script>" not in html
         assert "&lt;script&gt;" in html
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 6 · rank_tier 出现在输出中
+# Test 6 · rank_tier appears in the output
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestRankTier:
@@ -261,7 +261,7 @@ class TestRankTier:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 7 · footer 结构
+# Test 7 · footer structure
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestFooterStructure:
@@ -271,13 +271,13 @@ class TestFooterStructure:
 
     def test_footer_has_generated_time(self):
         html = render_report_html(_full_report())
-        # 生成时间格式 YYYY-MM-DD
+        # generated-time format YYYY-MM-DD
         import re
         assert re.search(r"\d{4}-\d{2}-\d{2}", html)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 测试 8 · duration_s 格式化
+# Test 8 · duration_s formatting
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestDurationFormatting:

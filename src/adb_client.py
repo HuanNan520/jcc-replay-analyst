@@ -1,11 +1,12 @@
-"""ADB 胶水层 — 从 Android 模拟器/真机拉截图。
+"""ADB glue layer — pull screenshots from an Android emulator / physical device.
 
-只做截屏 · 不发任何触控/输入指令 —— 本项目只看屏 · 不操作游戏。
+Screencap only · never sends any touch/input command — this project only watches the
+screen · it never operates the game.
 
-- screencap        标准通道 · 绝大多数画面可用
-- screencap_via_record  部分游戏 secure surface 屏蔽 screencap 时的 fallback
-                   （用 screenrecord 录 1 秒 → ffmpeg 抽首帧）
-- screencap_retry  前者 fail 自动走后者 · 并含 reconnect 兜底
+- screencap        standard channel · works for the vast majority of frames
+- screencap_via_record  fallback for games whose secure surface blocks screencap
+                   (record 1s with screenrecord -> extract first frame with ffmpeg)
+- screencap_retry  automatically falls back to the latter when the former fails · with reconnect fallback
 """
 from __future__ import annotations
 
@@ -73,7 +74,7 @@ class ADBClient:
             raise ADBError("adb not installed. Run: sudo apt install -y android-tools-adb")
 
     async def auto_connect(self) -> bool:
-        """依次尝试 MuMu / 夜神等模拟器常见端口。"""
+        """Try the common emulator ports (MuMu / Nox / etc.) in turn."""
         for port in [self.port] + [p for p in MUMU_DEFAULT_PORTS if p != self.port]:
             self.port = port
             self.device = f"{self.host}:{port}"
@@ -86,10 +87,10 @@ class ADBClient:
         data = await self._run("-s", self.device, "exec-out", "screencap", "-p")
         if not data or len(data) < 100:
             raise ADBError(
-                f"screencap 返回 {len(data)} 字节 —— 模拟器可能在切屏/黑屏/崩溃"
+                f"screencap returned {len(data)} bytes — the emulator may be switching screens / blacked out / crashed"
             )
         if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise ADBError(f"screencap 返回的不是 PNG（前 8 字节 {data[:8]!r}）")
+            raise ADBError(f"screencap did not return a PNG (first 8 bytes {data[:8]!r})")
         if save_path is not None:
             save_path.write_bytes(data)
         return data
@@ -100,29 +101,29 @@ class ADBClient:
         max_retries: int = 2,
         reconnect_on_fail: bool = True,
     ) -> bytes:
-        """容错版截屏：先 screencap · 空包 fallback 到 screenrecord · 网络 fail 自动 reconnect。"""
+        """Fault-tolerant screencap: try screencap first · fall back to screenrecord on an empty packet · auto-reconnect on network failure."""
         last_err: Exception | None = None
         for attempt in range(max_retries):
             try:
                 return await self.screencap(save_path=save_path)
             except ADBError as e:
                 last_err = e
-                log.info("screencap 第 %d 次失败（%s），试 screenrecord fallback",
+                log.info("screencap failed on attempt %d (%s), trying the screenrecord fallback",
                          attempt + 1, str(e)[:80])
                 try:
                     return await self.screencap_via_record(save_path=save_path)
                 except Exception as re:
                     last_err = re
-                    log.warning("screenrecord 也失败: %s", re)
+                    log.warning("screenrecord also failed: %s", re)
             except Exception as e:
                 last_err = e
                 if reconnect_on_fail:
                     try:
                         await self.auto_connect()
                     except Exception as ce:
-                        log.warning("reconnect 失败: %s", ce)
+                        log.warning("reconnect failed: %s", ce)
                 await asyncio.sleep(0.5 * (attempt + 1))
-        raise ADBError(f"截屏连续失败 {max_retries} 次: {last_err}")
+        raise ADBError(f"screencap failed {max_retries} times in a row: {last_err}")
 
     async def screencap_via_record(
         self,
@@ -130,8 +131,8 @@ class ADBClient:
         duration_s: int = 1,
         bit_rate: str = "8M",
     ) -> bytes:
-        """用 screenrecord 录 duration_s 秒 → ffmpeg 抽第一帧返回 PNG。
-        绕过某些游戏的 secure surface screencap 屏蔽。代价：比 screencap 慢约 1-2 秒。
+        """Record duration_s seconds with screenrecord -> extract the first frame with ffmpeg, return PNG.
+        Bypasses the secure-surface screencap block of some games. Cost: about 1-2s slower than screencap.
         """
         import tempfile
 
@@ -154,7 +155,7 @@ class ADBClient:
             )
             rc = await proc.wait()
             if rc != 0 or not os.path.isfile(local_png):
-                raise ADBError("ffmpeg 抽帧失败，请确认 ffmpeg 可用")
+                raise ADBError("ffmpeg failed to extract a frame, make sure ffmpeg is available")
             with open(local_png, "rb") as f:
                 data = f.read()
 

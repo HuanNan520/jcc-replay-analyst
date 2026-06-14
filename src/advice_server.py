@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 class AdviceBroadcaster:
-    """内存广播中枢 · 保存一个 bounded history · 新连接能补齐最近 N 条。"""
+    """In-memory broadcast hub · keeps a bounded history · new connections can catch up on the last N items."""
 
     def __init__(self, history_size: int = 20):
         self._clients: set[WebSocket] = set()
@@ -25,7 +25,7 @@ class AdviceBroadcaster:
         async with self._lock:
             self._clients.add(ws)
             snapshot = list(self._history)
-        # 推历史（帮新连接 UI 显示最近几条 advice）
+        # Push history (so a newly connected UI can show the last few advice items)
         for msg in snapshot:
             try:
                 await ws.send_text(json.dumps({"type": "history", "payload": msg}))
@@ -37,7 +37,7 @@ class AdviceBroadcaster:
             self._clients.discard(ws)
 
     async def broadcast(self, advice: dict) -> int:
-        """广播给所有活连接 · 返回成功推送数。"""
+        """Broadcast to all live connections · returns the number of successful pushes."""
         async with self._lock:
             self._history.append(advice)
             targets = list(self._clients)
@@ -60,7 +60,7 @@ class AdviceBroadcaster:
 
 def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
     app = FastAPI(title="jcc-coach advice server", version="0.1")
-    # overlay 和 server 同机 · CORS 不是安全焦点 · 全放
+    # Overlay and server run on the same machine · CORS is not a security concern here · allow all
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -80,7 +80,7 @@ def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
 
     @app.post("/advice")
     async def post_advice(request: Request):
-        """生产者 HTTP 入口 · B2 tick_loop 调这里。"""
+        """Producer HTTP entry point · the tick_loop POSTs here."""
         try:
             body = await request.json()
         except Exception:
@@ -92,17 +92,17 @@ def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
 
     @app.websocket("/ws/advice")
     async def ws_advice(ws: WebSocket):
-        """消费者 WS 入口 · B5 overlay 订阅这里。"""
+        """Consumer WS entry point · the overlay subscribes here."""
         await ws.accept()
         await app.state.broadcaster.subscribe(ws)
         log.info("WS client connected · total=%d", len(app.state.broadcaster._clients))
         try:
-            # 心跳：客户端定期发 ping · server 回 pong
+            # Heartbeat: the client sends ping periodically · the server replies pong
             while True:
                 data = await ws.receive_text()
                 if data == "ping":
                     await ws.send_text("pong")
-                # 其他消息忽略（服务设计是单向 server → client）
+                # Other messages are ignored (the service is one-way server -> client by design)
         except WebSocketDisconnect:
             pass
         except Exception as e:

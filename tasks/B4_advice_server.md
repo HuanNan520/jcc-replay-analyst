@@ -1,24 +1,24 @@
-# B4 · WebSocket 建议推送服务
+# B4 · WebSocket advice push service
 
-**分配给**：Claude Sonnet 4.6（`claude-sonnet-4-6`）· 常规 FastAPI + WebSocket 活。
-**依赖**：无 · 可和 B1 / B3 并行。
-**预期工时**：2–3 小时。
-**运行时**：Python 服务（WSL 或 Windows 两边跑都行 · 建议 Windows 方便和 overlay 同机器）。
-**新产品定位中的角色**：**实时 tick loop 与 UI 层的中间件** · 收 advice · 广播到所有订阅客户端。
+**Assigned to**: Claude Sonnet 4.6 (`claude-sonnet-4-6`) · routine FastAPI + WebSocket work.
+**Dependencies**: none · can run in parallel with B1 / B3.
+**Estimated effort**: 2–3 hours.
+**Runtime**: a Python service (runs on either WSL or Windows · Windows recommended for co-locating with the overlay).
+**Role in the new product positioning**: the **middleware between the real-time tick loop and the UI layer** · receives advice · broadcasts to all subscribed clients.
 
 ---
 
-## 你是谁
+## Who you are
 
-你是被派到 `HuanNan520/jcc-replay-analyst` 执行 B4 的 Claude Sonnet 4.6。
-新产品形态里 · B2 live_tick 产出 Advice → 通过**你写的这个 WebSocket 服务**广播 → B5 PyQt overlay 订阅显示。
+You are the Claude Sonnet 4.6 dispatched to `HuanNan520/jcc-replay-analyst` to execute B4.
+In the new product form · B2 live_tick produces Advice → broadcasts via **this WebSocket service you write** → the B5 PyQt overlay subscribes and displays.
 
-你这层是**纯传输 + 广播** · 不做任何 LLM / 感知工作 · 职责极单一。
+This layer is **pure transport + broadcast** · does no LLM / perception work · its responsibility is extremely single-purpose.
 
-## 目标产物
+## Target deliverable
 
 ```python
-# B2 tick_loop 端（生产者）
+# B2 tick_loop side (producer)
 import httpx
 
 async with httpx.AsyncClient() as c:
@@ -27,7 +27,7 @@ async with httpx.AsyncClient() as c:
         json=advice.model_dump(),
     )
 
-# B5 overlay 端（消费者）
+# B5 overlay side (consumer)
 import websockets, json
 async with websockets.connect("ws://localhost:8765/ws/advice") as ws:
     async for msg in ws:
@@ -35,9 +35,9 @@ async with websockets.connect("ws://localhost:8765/ws/advice") as ws:
         render(advice)
 ```
 
-## 具体要做
+## What to do
 
-### 1. 新增 `src/advice_server.py`
+### 1. Add `src/advice_server.py`
 
 ```python
 from __future__ import annotations
@@ -56,7 +56,7 @@ log = logging.getLogger(__name__)
 
 
 class AdviceBroadcaster:
-    """内存广播中枢 · 保存一个 bounded history · 新连接能补齐最近 N 条。"""
+    """In-memory broadcast hub · keeps a bounded history · new connections catch up on the latest N."""
 
     def __init__(self, history_size: int = 20):
         self._clients: set[WebSocket] = set()
@@ -67,7 +67,7 @@ class AdviceBroadcaster:
         async with self._lock:
             self._clients.add(ws)
             snapshot = list(self._history)
-        # 推历史（帮新连接 UI 显示最近几条 advice）
+        # push history (helps a new connection's UI show the latest few advice items)
         for msg in snapshot:
             try:
                 await ws.send_text(json.dumps({"type": "history", "payload": msg}))
@@ -79,7 +79,7 @@ class AdviceBroadcaster:
             self._clients.discard(ws)
 
     async def broadcast(self, advice: dict) -> int:
-        """广播给所有活连接 · 返回成功推送数。"""
+        """Broadcasts to all live connections · returns the number of successful pushes."""
         async with self._lock:
             self._history.append(advice)
             targets = list(self._clients)
@@ -102,7 +102,7 @@ class AdviceBroadcaster:
 
 def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
     app = FastAPI(title="jcc-coach advice server", version="0.1")
-    # overlay 和 server 同机 · CORS 不是安全焦点 · 全放
+    # overlay and server are on the same machine · CORS isn't a security focus · allow all
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -122,7 +122,7 @@ def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
 
     @app.post("/advice")
     async def post_advice(request: Request):
-        """生产者 HTTP 入口 · B2 tick_loop 调这里。"""
+        """Producer HTTP entry · B2 tick_loop calls here."""
         try:
             body = await request.json()
         except Exception:
@@ -134,17 +134,17 @@ def create_app(broadcaster: AdviceBroadcaster | None = None) -> FastAPI:
 
     @app.websocket("/ws/advice")
     async def ws_advice(ws: WebSocket):
-        """消费者 WS 入口 · B5 overlay 订阅这里。"""
+        """Consumer WS entry · the B5 overlay subscribes here."""
         await ws.accept()
         await app.state.broadcaster.subscribe(ws)
         log.info("WS client connected · total=%d", len(app.state.broadcaster._clients))
         try:
-            # 心跳：客户端定期发 ping · server 回 pong
+            # heartbeat: the client sends ping periodically · the server replies pong
             while True:
                 data = await ws.receive_text()
                 if data == "ping":
                     await ws.send_text("pong")
-                # 其他消息忽略（服务设计是单向 server → client）
+                # ignore other messages (the service is one-way server → client by design)
         except WebSocketDisconnect:
             pass
         except Exception as e:
@@ -173,18 +173,18 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. 更新 `requirements-windows.txt`（如果 B1 已创建）或单独加
+### 2. Update `requirements-windows.txt` (if B1 already created it) or add separately
 
 ```
 fastapi>=0.115
 uvicorn[standard]>=0.32
 ```
 
-这两个跨平台 · 所以既可以加到主 `requirements.txt`（更方便）· 也可以加到 `requirements-windows.txt`（更干净）。
+These two are cross-platform · so you can either add them to the main `requirements.txt` (more convenient) · or to `requirements-windows.txt` (cleaner).
 
-**推荐**加到**主 requirements.txt** —— 这个服务本身不 Windows-only · WSL 也能跑 · 加主 reqs 合理。
+**Recommended**: add them to the **main requirements.txt** — this service isn't Windows-only · WSL can run it too · adding to the main reqs is reasonable.
 
-### 3. 单元测试 `tests/test_advice_server.py`
+### 3. Unit test `tests/test_advice_server.py`
 
 ```python
 import asyncio
@@ -229,7 +229,7 @@ def test_websocket_roundtrip():
     app = create_app()
     client = TestClient(app)
     with client.websocket_connect("/ws/advice") as ws:
-        # 发 advice
+        # send advice
         client.post("/advice", json={"kind": "level", "reasoning": "x", "confidence": 0.5, "action": "up"})
         msg = json.loads(ws.receive_text())
         assert msg["type"] == "advice"
@@ -239,7 +239,7 @@ def test_websocket_roundtrip():
 def test_websocket_replays_history():
     app = create_app()
     client = TestClient(app)
-    # 先 post 两条 · 再连 ws · 应该收到 history
+    # post two first · then connect ws · should receive history
     for i in range(2):
         client.post("/advice", json={"kind": "augment", "reasoning": f"hist{i}", "confidence": 0.7, "ranked": [], "recommendation": "-"})
     with client.websocket_connect("/ws/advice") as ws:
@@ -265,7 +265,7 @@ def test_ping_pong():
     client = TestClient(app)
     with client.websocket_connect("/ws/advice") as ws:
         ws.send_text("ping")
-        # 第一条可能是 history · 第二条 pong
+        # the first message might be history · the second is pong
         msgs = []
         for _ in range(2):
             try:
@@ -275,67 +275,67 @@ def test_ping_pong():
         assert "pong" in msgs
 ```
 
-### 4. README 更新（加一小段）
+### 4. README update (add a small section)
 
-在 "实时 coach 模式 · 数据源" 段之后：
+After the "Real-time coach mode · data source" section:
 
 ```markdown
-### 实时 coach 模式 · 运行
+### Real-time coach mode · running
 
 ```bash
-# 1. 起本地 vLLM（和复盘一样）
+# 1. start the local vLLM (same as for replay)
 python -m vllm.entrypoints.openai.api_server \
   --model /path/to/Qwen3-VL-4B-FP8 \
   --port 8000
 
-# 2. 起 advice 广播服务（任意一端）
+# 2. start the advice broadcast service (either side)
 python -m src.advice_server --port 8765
 
-# 3. 起 live tick loop（Windows · 吃 OBS 虚拟摄像头 · 见 B2）
-# 4. 起 overlay UI（Windows · 订阅 ws://localhost:8765/ws/advice · 见 B5）
+# 3. start the live tick loop (Windows · consumes the OBS Virtual Camera · see B2)
+# 4. start the overlay UI (Windows · subscribes to ws://localhost:8765/ws/advice · see B5)
 ```
 ```
 
 ---
 
-## 禁止做的事
+## What not to do
 
-- 不要加鉴权 / token / API key —— 本地 127.0.0.1 · 跨机扩展等用户明确要求再加
-- 不要引入 redis / rabbitmq / kafka 等外部 broker —— 内存 set 足够
-- 不要做持久化（数据库 / 文件） —— deque 够了 · 实时场景历史不值钱
-- 不要写 graceful shutdown 的复杂逻辑 —— uvicorn 自带的够
-- 不要接 B2 / B3 的业务逻辑 —— 这层纯传输
-- 不要用 `anthropic` / `openai` 相关模块（当然也不需要）
-- 不要改 `src/llm_analyzer.py` / `src/decision_llm.py`（B3 写的）/ `src/schema.py`
-
----
-
-## 自验收清单
-
-- [ ] `python -c "from src.advice_server import create_app, AdviceBroadcaster"` 导入无错
-- [ ] `pytest tests/test_advice_server.py -v` 全绿 · 至少 7 个测试
-- [ ] `python -m src.advice_server --port 8765` 能起来 · `curl http://localhost:8765/health` 返回 `{"ok":true,...}`
-- [ ] 开两个终端 · 一个 `websocat ws://localhost:8765/ws/advice`（或等价 Python 客户端） · 另一个 `curl -X POST http://localhost:8765/advice -d '{"kind":"augment","reasoning":"t","confidence":0.9,"ranked":[],"recommendation":"-"}' -H 'content-type: application/json'` · WebSocket 那端收到消息
-- [ ] 和原 40 个 pytest 一起跑 · 零回归
-- [ ] `git diff --stat` 只含：
-  - `src/advice_server.py` (新)
-  - `tests/test_advice_server.py` (新)
-  - `requirements.txt` (加 fastapi + uvicorn)
-  - `README.md` (加一小段)
-
-## 完成后
-
-给用户 ≤ 150 字报告：
-- `/health` 响应 JSON 样例
-- 并发 5 个 WS 客户端 + 一次 POST · 广播成功数（用 `wscat` 或 Python 脚本自己验）
-- `/advice` 接受什么 shape 的 body · 给 B2 的契约确认
-- 给 B5 的 subscription 契约：ws URL + message 格式 `{"type":"advice","payload":{...}}` 和 `{"type":"history","payload":{...}}`
-
-不 git commit。
+- Don't add auth / tokens / API keys — local 127.0.0.1 · add them only when the user explicitly needs cross-machine extension
+- Don't introduce external brokers like redis / rabbitmq / kafka — an in-memory set is enough
+- Don't add persistence (database / file) — a deque is enough · real-time history isn't worth much
+- Don't write complex graceful-shutdown logic — uvicorn's built-in is enough
+- Don't wire in B2 / B3 business logic — this layer is pure transport
+- Don't use `anthropic` / `openai` modules (you don't need them anyway)
+- Don't modify `src/llm_analyzer.py` / `src/decision_llm.py` (B3's) / `src/schema.py`
 
 ---
 
-## 参考
+## Self-acceptance checklist
+
+- [ ] `python -c "from src.advice_server import create_app, AdviceBroadcaster"` imports without error
+- [ ] `pytest tests/test_advice_server.py -v` all green · at least 7 tests
+- [ ] `python -m src.advice_server --port 8765` starts · `curl http://localhost:8765/health` returns `{"ok":true,...}`
+- [ ] Two terminals · one `websocat ws://localhost:8765/ws/advice` (or an equivalent Python client) · the other `curl -X POST http://localhost:8765/advice -d '{"kind":"augment","reasoning":"t","confidence":0.9,"ranked":[],"recommendation":"-"}' -H 'content-type: application/json'` · the WebSocket side receives the message
+- [ ] Run together with the original 40 pytest · zero regressions
+- [ ] `git diff --stat` only contains:
+  - `src/advice_server.py` (new)
+  - `tests/test_advice_server.py` (new)
+  - `requirements.txt` (add fastapi + uvicorn)
+  - `README.md` (add a small section)
+
+## After completion
+
+Give the user a ≤ 150-word report:
+- A sample of the `/health` response JSON
+- 5 concurrent WS clients + one POST · the broadcast success count (verify with `wscat` or your own Python script)
+- What shape of body `/advice` accepts · confirm the contract for B2
+- The subscription contract for B5: ws URL + message formats `{"type":"advice","payload":{...}}` and `{"type":"history","payload":{...}}`
+
+No git commit.
+
+---
+
+## References
 
 - FastAPI WebSocket: https://fastapi.tiangolo.com/advanced/websockets/
 - TestClient WS: https://fastapi.tiangolo.com/advanced/testing-websockets/

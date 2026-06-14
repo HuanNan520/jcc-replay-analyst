@@ -1,25 +1,26 @@
-"""对局分析器 —— 把各感知层的输出串成一份完整复盘报告。
+"""Match analyzer — stitches the output of the perception layers into a complete replay report.
 
 Pipeline:
-  录屏 / 截图序列
-    ↓
-  frame_monitor   抽出关键帧（回合切换 / 商店刷新 / 战斗开始）
-    ↓
-  ┌────────────┬────────────┬────────────┐
-  │  OCR 层    │   CV 层    │   VLM 层   │
-  │ HP / 金币  │ 棋子 / 装备│ 羁绊 / 阵容│
-  └────────────┴────────────┴────────────┘
-    ↓
-  合流成 WorldState 序列 · 每关键帧一个
-    ↓
-  LLM 分析器（带金铲铲版本知识 RAG） · 生成 MatchReport
+  recording / screenshot sequence
+    v
+  frame_monitor   extract keyframes (round transition / shop refresh / combat start)
+    v
+  +------------+------------+------------+
+  | OCR layer  | CV layer   | VLM layer  |
+  | HP / gold  | unit / item| trait/comp |
+  +------------+------------+------------+
+    v
+  merged into a WorldState sequence · one per keyframe
+    v
+  LLM analyzer (with TFT version-knowledge RAG) · produces a MatchReport
 
-本模块是复盘路线的 pipeline 编排 · 感知 + LLM 都已接真实实现：
-  - VLMClient (vlm_client.py) 走本地 vLLM Qwen3-VL
-  - LocalLLMAnalyzer (llm_analyzer.py) 走本地 vLLM guided_json
-  - S17 KnowledgeProvider (knowledge.py) 从 jcc-daida 取版本数据
+This module is the pipeline orchestration of the replay path · both perception and LLM
+are wired to real implementations:
+  - VLMClient (vlm_client.py) runs on local vLLM Qwen3-VL
+  - LocalLLMAnalyzer (llm_analyzer.py) runs on local vLLM guided_json
+  - S17 KnowledgeProvider (knowledge.py) pulls version data from jcc-daida
 
-实时 coach 路线见 src/live_tick.py · 共享同一套感知 + LLM 层。
+For the real-time coach path see src/live_tick.py · it shares the same perception + LLM layers.
 """
 from __future__ import annotations
 
@@ -43,12 +44,12 @@ class AnalyzerConfig:
     vlm_base_url: str = "http://localhost:8000/v1"
     vlm_model: str = "Qwen/Qwen2.5-VL-7B-Instruct"
     vlm_mode: str = "real"                # real / mock
-    llm_mode: str = "mock"                # real / mock（未接入前先 mock）
+    llm_mode: str = "mock"                # real / mock (mock until the LLM is wired up)
     llm_base_url: str = "http://localhost:8000/v1"
     llm_model: str = "Qwen3-VL-8B-FP8"
     screen_w: int = 2560
     screen_h: int = 1456
-    enable_knowledge: bool = True         # 尝试加载 S16 知识库 · 失败静默降级
+    enable_knowledge: bool = True         # try to load the S16 knowledge base · silently degrade on failure
 
 
 class Analyzer:
@@ -67,38 +68,39 @@ class Analyzer:
         )
         if self.knowledge is not None:
             log.info(
-                "S16 知识库已加载 · %d 套阵容 / %d 英雄 / %d 羁绊",
+                "S16 knowledge base loaded · %d comps / %d champions / %d traits",
                 len(self.knowledge.comps),
                 len(self.knowledge.all_units),
                 len(self.knowledge.all_traits),
             )
 
     async def analyze_frames(self, frame_bytes_iter: Iterable[bytes]) -> MatchReport:
-        """Main entry · 吃一个帧序列（bytes 迭代器）· 吐一份 MatchReport。"""
+        """Main entry · takes a frame sequence (bytes iterator) · returns one MatchReport."""
         key_states: List[WorldState] = []
 
         for i, frame in enumerate(frame_bytes_iter):
-            # 1. 过滤 · 只留关键帧
+            # 1. Filter · keep keyframes only
             events = self.monitor.observe(frame)
             if not self.monitor.any_triggered(events) and i > 0:
                 continue
 
-            # 2. 三路识别
-            ws = await self.vlm.parse(frame)            # VLM · 语义字段
-            ws = self._overlay_ocr(frame, ws)           # OCR · 精确数字
-            # TODO: CV 层 · 读装备图标 · 目前 VLM 已近似覆盖
+            # 2. Three-way recognition
+            ws = await self.vlm.parse(frame)            # VLM · semantic fields
+            ws = self._overlay_ocr(frame, ws)           # OCR · precise numbers
+            # TODO: CV layer · read item icons · for now the VLM covers this approximately
 
             key_states.append(ws)
             log.info("frame %d · stage=%s · round=%s · hp=%d · gold=%d",
                      i, ws.stage, ws.round, ws.hp, ws.gold)
 
-        # 3. LLM 分析
+        # 3. LLM analysis
         report = await self._llm_synthesize(key_states)
         return report
 
     def _overlay_ocr(self, frame: bytes, ws: WorldState) -> WorldState:
-        """用 OCR 覆盖 VLM 识别不准的数字字段（HP / gold / level）。"""
+        """Use OCR to override the numeric fields the VLM reads imprecisely (HP / gold / level)."""
         try:
+            # "生命" (HP) is the on-screen Chinese label OCR anchors on — must stay Chinese.
             hp = find_number_near(frame, "生命")
             if hp is not None and 0 <= hp <= 100:
                 ws.hp = hp
@@ -106,6 +108,7 @@ class Analyzer:
             log.debug("ocr hp miss: %s", e)
 
         try:
+            # "金币" (gold) is the on-screen Chinese label OCR anchors on — must stay Chinese.
             gold = find_number_near(frame, "金币")
             if gold is not None and 0 <= gold <= 999:
                 ws.gold = gold
@@ -115,14 +118,15 @@ class Analyzer:
         return ws
 
     async def _llm_synthesize(self, states: List[WorldState]) -> MatchReport:
-        """把状态序列交给 LLM · 生成评分和 narrative。
+        """Hand the state sequence to the LLM · produce grades and narrative.
 
-        llm_mode="real" 时走本地 vLLM (LocalLLMAnalyzer) · "mock" 时返回骨架。
-        self.knowledge 实现了 KnowledgeProvider Protocol (version_context /
-        comps_table / validate_unit_name) · duck typing 传过去即可。None 时
-        LocalLLMAnalyzer 自行降级到通用 TFT 规则。
+        With llm_mode="real" this runs on local vLLM (LocalLLMAnalyzer) · with "mock" it
+        returns a skeleton. self.knowledge implements the KnowledgeProvider Protocol
+        (version_context / comps_table / validate_unit_name) · pass it via duck typing.
+        When None, LocalLLMAnalyzer degrades to generic TFT rules on its own.
         """
         if not states:
+            # Chinese report content kept verbatim — this is product-facing report text.
             return MatchReport(
                 match_id="empty",
                 final_rank=8, final_hp=0, duration_s=0,
@@ -142,7 +146,11 @@ class Analyzer:
         return await llm.synthesize(states)
 
     def _mock_placeholder(self, states: List[WorldState]) -> MatchReport:
-        """mock 模式骨架输出 · llm_mode='real' 时不会走到这里。"""
+        """Skeleton output for mock mode · never reached when llm_mode='real'.
+
+        The grade/title/comment/summary strings below are Chinese report content the
+        product emits — kept verbatim so the mock report reads like the real one.
+        """
         first, last = states[0], states[-1]
         match_id = f"TFT-{int(time.time())}"
         return MatchReport(

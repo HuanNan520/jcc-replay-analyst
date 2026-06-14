@@ -1,14 +1,14 @@
-"""单元测试 · src/live_tick.py
+"""Unit tests · src/live_tick.py
 
-重点覆盖：
-- `_infer_decision_context` 的六类决策点 + 负面用例（不触发）
-- `AdvicePublisher.publish` 在 B4 可用 / 不可用时的 graceful 行为（不抛异常）
-- `_report_to_markdown` + `_save_report` 的输出形状
-- `LiveTickLoop._process_frame` 的核心分支（mock 掉 VLM / Capture / LLM / Publisher）
+Main coverage:
+- the six decision points of `_infer_decision_context` plus negative cases (no trigger)
+- the graceful behavior of `AdvicePublisher.publish` when B4 is available / unavailable (no exceptions)
+- the output shape of `_report_to_markdown` + `_save_report`
+- the core branches of `LiveTickLoop._process_frame` (with VLM / Capture / LLM / Publisher mocked out)
 
-不测的（需真服务）：
-- OBSCapture 本身 · DecisionLLM / LocalLLMAnalyzer 的真 HTTP 调用
-- CLI 完整启停
+Not tested (require real services):
+- OBSCapture itself · the real HTTP calls of DecisionLLM / LocalLLMAnalyzer
+- full CLI start/stop
 """
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ def _bag(*names: str) -> list[BagItem]:
 
 
 def _png_bytes(color=(40, 40, 40), size=(64, 64)) -> bytes:
-    """合成一张小 PNG · 给 FrameMonitor 当输入。"""
+    """Synthesize a small PNG to feed FrameMonitor as input."""
     img = Image.new("RGB", size, color)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -84,7 +84,7 @@ def _png_bytes(color=(40, 40, 40), size=(64, 64)) -> bytes:
 
 
 # ============================================================
-# 六类决策点 —— _infer_decision_context
+# Six decision points —— _infer_decision_context
 # ============================================================
 
 class TestDecisionContextInference:
@@ -93,7 +93,7 @@ class TestDecisionContextInference:
         ctx = _infer_decision_context(_ws("augment"), prev_ws=None)
         assert ctx is not None
         assert ctx.kind == "augment"
-        assert len(ctx.options) == 3   # 始终补齐到 3 个
+        assert len(ctx.options) == 3   # always padded to 3
 
     def test_augment_with_three_augments_uses_last_three(self):
         ws = _ws(
@@ -111,7 +111,7 @@ class TestDecisionContextInference:
         assert ctx is None
 
     def test_augment_after_leaving_then_returning_retriggers(self):
-        # augment → pve → augment · 应再触发
+        # augment -> pve -> augment · should retrigger
         prev = _ws("pve")
         ctx = _infer_decision_context(_ws("augment"), prev_ws=prev)
         assert ctx is not None and ctx.kind == "augment"
@@ -148,14 +148,14 @@ class TestDecisionContextInference:
     # ---------- level ----------
     def test_level_triggered_when_gold_enough(self):
         prev = _ws("augment")
-        # level=3 · 升 4 级门槛 = 10 金
+        # level=3 · the level-4 threshold = 10 gold
         curr = _ws("pve", gold=10, level=3)
         ctx = _infer_decision_context(curr, prev_ws=prev)
         assert ctx is not None and ctx.kind == "level"
 
     def test_level_not_triggered_when_insufficient_gold(self):
         prev = _ws("augment")
-        # level=3 gold=4 < 10 门槛 · 不触发
+        # level=3 gold=4 < 10 threshold · no trigger
         curr = _ws("pve", gold=4, level=3)
         ctx = _infer_decision_context(curr, prev_ws=prev)
         assert ctx is None
@@ -167,7 +167,7 @@ class TestDecisionContextInference:
         assert ctx is None
 
     def test_pve_to_pvp_not_retriggered(self):
-        # 已经在战斗回合里 · pve → pvp 不应再触发 level
+        # already in a combat round · pve -> pvp should not retrigger level
         prev = _ws("pve", gold=10, level=3)
         curr = _ws("pvp", gold=8, level=4)
         ctx = _infer_decision_context(curr, prev_ws=prev)
@@ -182,7 +182,7 @@ class TestDecisionContextInference:
         assert ctx.options == ["暴风大剑", "反曲之弓"]
 
     def test_item_not_triggered_if_bag_size_one(self):
-        # 只有 1 个散件 · 不够合 · 不触发
+        # only 1 component · not enough to combine · no trigger
         prev = _ws("pve", bag=[])
         curr = _ws("pve", bag=_bag("暴风大剑"))
         ctx = _infer_decision_context(curr, prev_ws=prev)
@@ -205,18 +205,18 @@ class TestDecisionContextInference:
         ctx = _infer_decision_context(_ws("unknown"), prev_ws=None)
         assert ctx is None
 
-    # ---------- shop 被显式跳过 ----------
+    # ---------- shop explicitly skipped ----------
     def test_shop_kind_never_triggered_directly(self):
-        # pick 进入时哪怕 shop 有内容 · 也不走 shop 分支
+        # even if the shop has content when entering pick, do not take the shop branch
         prev = _ws("augment")
         curr = _ws("pick", shop=["卡特琳娜", "金克斯", "小炮", "风女", "亚索"])
         ctx = _infer_decision_context(curr, prev_ws=prev)
-        # pick 不在 augment/carousel/positioning/pve/pvp · 应该不触发
+        # pick is not in augment/carousel/positioning/pve/pvp · should not trigger
         assert ctx is None
 
 
 # ============================================================
-# LEVEL_THRESHOLDS 表自检
+# LEVEL_THRESHOLDS table self-check
 # ============================================================
 
 class TestLevelThresholds:
@@ -298,26 +298,26 @@ class TestReportRendering:
 
 
 # ============================================================
-# AdvicePublisher —— graceful 失败
+# AdvicePublisher —— graceful failure
 # ============================================================
 
 class TestAdvicePublisher:
     @pytest.mark.asyncio
     async def test_publish_swallows_network_error(self):
-        """B4 不在线 · publish 不能抛 · 不能崩主循环。"""
-        pub = AdvicePublisher("http://127.0.0.1:1")   # 端口 1 · 必然拒连
+        """B4 offline · publish must not raise · must not crash the main loop."""
+        pub = AdvicePublisher("http://127.0.0.1:1")   # port 1 · always refuses connection
         advice = LevelAdvice(
             reasoning="test",
             confidence=0.5,
             action="up",
         )
         async with pub:
-            # 不应抛
+            # should not raise
             await pub.publish(advice)
 
     @pytest.mark.asyncio
     async def test_publish_posts_correct_body(self, monkeypatch):
-        """成功路径 · 验证 body 形状。"""
+        """Success path · verify the body shape."""
         captured = {}
 
         class FakeResp:
@@ -352,11 +352,11 @@ class TestAdvicePublisher:
 
 
 # ============================================================
-# LiveTickLoop._process_frame —— 核心状态机
+# LiveTickLoop._process_frame —— core state machine
 # ============================================================
 
 class _FakeVLM:
-    """按帧序号返回预设 WorldState · 不打真 HTTP。"""
+    """Return a preset WorldState by frame index · no real HTTP."""
 
     def __init__(self, states: list[WorldState]):
         self._states = list(states)
@@ -369,7 +369,7 @@ class _FakeVLM:
 
 
 class _RecordingPublisher:
-    """代替 AdvicePublisher · 记录所有 publish 调用。"""
+    """Stand-in for AdvicePublisher · records every publish call."""
 
     def __init__(self):
         self.published: list = []
@@ -379,7 +379,7 @@ class _RecordingPublisher:
 
 
 class _RecordingDecisionLLM:
-    """代替 DecisionLLM · 按 kind 返回一个占位 Advice · 记录每次调用。"""
+    """Stand-in for DecisionLLM · returns a placeholder Advice per kind · records every call."""
 
     def __init__(self):
         self.calls: list[DecisionContext] = []
@@ -417,7 +417,7 @@ class _RecordingDecisionLLM:
 
 
 class _RecordingPostMatch:
-    """代替 LocalLLMAnalyzer · 返回 dummy MatchReport · 记录 states。"""
+    """Stand-in for LocalLLMAnalyzer · returns a dummy MatchReport · records states."""
 
     def __init__(self):
         self.states_seen: list[list[WorldState]] = []
@@ -431,14 +431,14 @@ def _fresh_loop(
     states_for_vlm: list[WorldState],
     tmp_path: Path,
 ) -> tuple[LiveTickLoop, _RecordingDecisionLLM, _RecordingPublisher, _RecordingPostMatch]:
-    """建一个全 mock 依赖的 LiveTickLoop。"""
+    """Build a LiveTickLoop with all dependencies mocked."""
     vlm = _FakeVLM(states_for_vlm)
     decision_llm = _RecordingDecisionLLM()
     post_match = _RecordingPostMatch()
     publisher = _RecordingPublisher()
 
     loop = LiveTickLoop(
-        capture=None,        # type: ignore[arg-type]  不走真 run()
+        capture=None,        # type: ignore[arg-type]  does not call the real run()
         vlm=vlm,             # type: ignore[arg-type]
         decision_llm=decision_llm,  # type: ignore[arg-type]
         post_match_llm=post_match,  # type: ignore[arg-type]
@@ -451,20 +451,20 @@ def _fresh_loop(
 class TestProcessFrame:
     @pytest.mark.asyncio
     async def test_first_valid_frame_starts_match(self, tmp_path):
-        """首帧走 VLM 路径（即便 any_triggered=False）· 因为 _match_started=False 不 short-circuit。"""
+        """The first frame takes the VLM path (even with any_triggered=False) because _match_started=False means no short-circuit."""
         ws0 = _ws("pve", round="1-1", gold=0, level=1)
         loop, _dec, _pub, _ = _fresh_loop([ws0], tmp_path)
 
         frame = _png_bytes()
         await loop._process_frame(frame)
-        # VLM 返回合法 stage · 应当标记对局开始 · ring 有一条
+        # VLM returns a valid stage · should mark the match as started · ring has one entry
         assert loop._match_started is True
         assert len(loop.ring) == 1
         assert loop.ring[-1].stage == "pve"
 
     @pytest.mark.asyncio
     async def test_trigger_augment_decision_on_first_frame(self, tmp_path):
-        """首帧 VLM 出 augment · 因为 prev_ws=None → 触发 augment 决策。"""
+        """First frame VLM yields augment · because prev_ws=None -> triggers the augment decision."""
         ws_augment = _ws("augment", round="2-1", augments=["A", "B", "C"])
         loop, decision_llm, publisher, _ = _fresh_loop(
             [ws_augment], tmp_path,
@@ -473,7 +473,7 @@ class TestProcessFrame:
         frame = _png_bytes(color=(240, 180, 120))
         await loop._process_frame(frame)
 
-        # VLM 被调用 · WS 被加入 ring · augment 决策触发
+        # VLM called · WS added to ring · augment decision triggered
         assert loop._match_started is True
         assert len(loop.ring) == 1
         assert loop.ring[-1].stage == "augment"
@@ -484,31 +484,31 @@ class TestProcessFrame:
 
     @pytest.mark.asyncio
     async def test_end_stage_finalizes_match(self, tmp_path):
-        """stage 从 pvp → end · 触发复盘合成 · 生成 md/json · 清空 ring。"""
+        """stage goes pvp -> end · triggers replay synthesis · generates md/json · clears the ring."""
         ws_pvp = _ws("pvp", round="5-3")
         ws_end = _ws("end", round="5-4", hp=0)
         loop, _dec, _pub, post_match = _fresh_loop(
             [ws_pvp, ws_end], tmp_path,
         )
 
-        # 首帧 · VLM 出 pvp · 开局
+        # first frame · VLM yields pvp · match starts
         f0 = _png_bytes(color=(10, 10, 10))
         await loop._process_frame(f0)
         assert loop._match_started is True
         assert len(loop.ring) == 1
 
-        # 第二帧 · ROI 变化 · VLM 出 end · 触发 finalize
+        # second frame · ROI changes · VLM yields end · triggers finalize
         f1 = _png_bytes(color=(240, 180, 120))
         await loop._process_frame(f1)
 
-        # finalize 后 · ring 清空 · match_started 重置
+        # after finalize · ring cleared · match_started reset
         assert loop._match_started is False
         assert len(loop.ring) == 0
-        # post-match LLM 被调用 · 且收到了 pvp+end 两个状态
+        # post-match LLM called · and received both pvp+end states
         assert len(post_match.states_seen) == 1
         assert len(post_match.states_seen[0]) == 2
 
-        # reports 目录下真产出 md/json
+        # md/json actually produced under the reports directory
         md_files = list(tmp_path.glob("*.md"))
         json_files = list(tmp_path.glob("*.json"))
         assert len(md_files) == 1
@@ -516,7 +516,7 @@ class TestProcessFrame:
 
     @pytest.mark.asyncio
     async def test_unknown_before_match_start_is_ignored(self, tmp_path):
-        """VLM 返回 unknown 且还没开过局 · 不进 ring 不调决策。"""
+        """VLM returns unknown and no match has started yet · does not enter the ring or call the decision."""
         ws_unknown_a = _ws("unknown")
         ws_unknown_b = _ws("unknown")
         loop, decision_llm, publisher, _ = _fresh_loop(
@@ -535,18 +535,18 @@ class TestProcessFrame:
 
     @pytest.mark.asyncio
     async def test_no_trigger_short_circuits_when_match_started(self, tmp_path):
-        """对局进行中 · ROI 没变化 → 直接跳 · 不打 VLM · ring 不增。"""
+        """Match in progress · ROI unchanged -> skip directly · no VLM call · ring does not grow."""
         ws_pvp = _ws("pvp", round="3-2")
         loop, _dec, _pub, _ = _fresh_loop(
             [ws_pvp], tmp_path,
         )
-        # 手动把 loop 置为对局中
+        # manually mark the loop as mid-match
         loop._match_started = True
 
         same_frame = _png_bytes(color=(10, 10, 10))
-        # 首帧 baseline (all triggered=False) · 但 match_started=True · 走 short-circuit return
+        # first frame baseline (all triggered=False) · but match_started=True · takes the short-circuit return
         await loop._process_frame(same_frame)
-        # 第二张同色 · 继续 short-circuit
+        # second frame, same color · keeps short-circuiting
         await loop._process_frame(same_frame)
-        # VLM 应从未被调 · ring 没增长
+        # VLM should never have been called · ring did not grow
         assert len(loop.ring) == 0

@@ -1,4 +1,4 @@
-"""tests/test_setup_check.py · 验证 setup_check.py 的核心行为。"""
+"""tests/test_setup_check.py · verify the core behavior of setup_check.py."""
 from __future__ import annotations
 
 import sys
@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-# 把 scripts/ 加到 sys.path 以便直接 import setup_check
+# add scripts/ to sys.path so setup_check can be imported directly
 _scripts_dir = Path(__file__).parent.parent / "scripts"
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
@@ -17,11 +17,11 @@ import setup_check  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# 1. 状态常量 & 格式化
+# 1. status constants & formatting
 # ---------------------------------------------------------------------------
 
 class TestStatusEnum:
-    """验证状态常量和 _fmt 输出包含正确图标。"""
+    """Verify the status constants and that _fmt output contains the correct icons."""
 
     def test_status_constants_exist(self):
         assert setup_check.OK == "ok"
@@ -53,11 +53,11 @@ class TestStatusEnum:
 
 
 # ---------------------------------------------------------------------------
-# 2. Windows-only 平台跳过逻辑
+# 2. Windows-only platform-skip logic
 # ---------------------------------------------------------------------------
 
 class TestWindowsOnlySkip:
-    """非 Windows 平台应返回 SKIP；Windows 平台走 import 路径。"""
+    """Non-Windows platforms should return SKIP; Windows platforms take the import path."""
 
     def test_skip_on_non_windows(self):
         with mock.patch.object(setup_check.sys, "platform", "linux"):
@@ -66,7 +66,7 @@ class TestWindowsOnlySkip:
         assert "skipped" in result.detail.lower()
 
     def test_win32_and_import_ok(self):
-        # 伪造 win32 环境 + 伪造可 import 的模块
+        # fake a win32 environment + a fake importable module
         fake_mod = types.ModuleType("PyQt6")
         fake_mod.__version__ = "6.7.0"
         with mock.patch.object(setup_check.sys, "platform", "win32"):
@@ -83,14 +83,14 @@ class TestWindowsOnlySkip:
 
 
 # ---------------------------------------------------------------------------
-# 3. 不崩在依赖缺失时
+# 3. does not crash when dependencies are missing
 # ---------------------------------------------------------------------------
 
 class TestGracefulMissingDeps:
-    """各检查函数在依赖缺失时应返回 WARN/FAIL 而非抛出异常。"""
+    """Each check function should return WARN/FAIL rather than raise when a dependency is missing."""
 
     def test_core_import_missing_returns_fail(self):
-        # patch setup_check 内部使用的两个函数，避免 importlib 循环
+        # patch the two functions setup_check uses internally, to avoid an importlib loop
         with mock.patch.object(setup_check, "_try_import", return_value=None):
             with mock.patch.object(setup_check, "_pkg_version", return_value=None):
                 result = setup_check.check_import_core("nonexistent_pkg", "nonexistent_pkg")
@@ -117,7 +117,7 @@ class TestGracefulMissingDeps:
 
     def test_sample_frames_missing_dir(self, tmp_path):
         with mock.patch("setup_check.Path") as MockPath:
-            # 让 repo_root / examples / sample_frames 不存在
+            # make repo_root / examples / sample_frames not exist
             fake_sf = mock.MagicMock()
             fake_sf.exists.return_value = False
             mock_root = mock.MagicMock()
@@ -125,15 +125,15 @@ class TestGracefulMissingDeps:
                 fake_sf if other == "examples" else mock.MagicMock()
             )
             MockPath.return_value.parent.parent = mock_root
-            # 直接调真实函数但 patch exists
+            # call the real function but patch exists
             real_sf = tmp_path / "nonexistent_dir"
             with mock.patch.object(setup_check, "check_sample_frames",
                                    wraps=lambda: setup_check.CheckResult(
-                                       setup_check.FAIL, "examples/sample_frames/", "目录不存在"
+                                       setup_check.FAIL, "examples/sample_frames/", "directory does not exist"
                                    )):
                 result = setup_check.check_sample_frames()
-        # tmp_path 里没有 sample_frames/ 且没有 examples/ — 结果为 FAIL
-        # 直接构造期望值断言即可
+        # tmp_path has no sample_frames/ and no examples/ — result is FAIL
+        # just construct the expected value and assert
         assert result.status in (setup_check.FAIL, setup_check.WARN)
 
     def test_knowledge_load_exception(self):
@@ -146,10 +146,10 @@ class TestGracefulMissingDeps:
 
     def test_jcc_daida_missing_env(self, tmp_path, monkeypatch):
         monkeypatch.delenv("JCC_DAIDA_PATH", raising=False)
-        # 把默认路径 patch 成不存在的 tmp 目录
+        # patch the default path to a non-existent tmp directory
         with mock.patch("setup_check._DEFAULT_DAIDA_PATH" if hasattr(setup_check, "_DEFAULT_DAIDA_PATH") else "builtins.open",
                         tmp_path / "nope"):
-            # 直接用不存在的默认路径测：
+            # test directly with a non-existent default path:
             with mock.patch.object(
                 Path,
                 "exists",
@@ -160,15 +160,15 @@ class TestGracefulMissingDeps:
 
 
 # ---------------------------------------------------------------------------
-# 4. Python 版本检查
+# 4. Python version check
 # ---------------------------------------------------------------------------
 
 class TestPythonVersionCheck:
-    """sys.version_info 是 C 层对象 · 用 SimpleNamespace 模拟 .major/.minor/.micro。"""
+    """sys.version_info is a C-level object · use SimpleNamespace to mock .major/.minor/.micro."""
 
     @staticmethod
     def _vi(major: int, minor: int, micro: int = 0):
-        """返回带 major/minor/micro 属性的假版本对象。"""
+        """Return a fake version object with major/minor/micro attributes."""
         import types
         ns = types.SimpleNamespace(major=major, minor=minor, micro=micro)
         return ns
@@ -190,7 +190,7 @@ class TestPythonVersionCheck:
 
 
 # ---------------------------------------------------------------------------
-# 5. CI workflow 文件检查
+# 5. CI workflow file check
 # ---------------------------------------------------------------------------
 
 class TestWorkflowCheck:
@@ -208,12 +208,12 @@ class TestWorkflowCheck:
 
 
 # ---------------------------------------------------------------------------
-# 6. run_checks() 集成：exit 0 on warn-only, exit 1 on fail
+# 6. run_checks() integration: exit 0 on warn-only, exit 1 on fail
 # ---------------------------------------------------------------------------
 
 class TestRunChecksExitCode:
     def test_returns_zero_on_all_ok_or_warn(self, monkeypatch):
-        """Patch 所有检查函数为全 OK，确认 run_checks() 返回 0。"""
+        """Patch all check functions to all-OK and confirm run_checks() returns 0."""
         ok_result = setup_check.CheckResult(setup_check.OK, "dummy")
 
         patch_fns = [

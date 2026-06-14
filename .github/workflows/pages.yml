@@ -1,19 +1,19 @@
 name: Deploy Pages
 
-# 部署 pitch/ + examples/ 里的 HTML 到 GitHub Pages · 手动触发
-# 启用步骤：
-#   1. repo Settings → Pages → Build and deployment source 选 "GitHub Actions"
-#   2. Actions 标签 → "Deploy Pages" → "Run workflow"
-# 启用后 URL: https://huannan520.github.io/jcc-replay-analyst/
-# 后续自动部署：取消注释下面的 push 触发器即可。
+# Deploys the HTML in pitch/ + examples/ to GitHub Pages · manually triggered
+# Enable steps:
+#   1. repo Settings → Pages → Build and deployment source → "GitHub Actions"
+#   2. Actions tab → "Deploy Pages" → "Run workflow"
+# Once enabled, URL: https://huannan520.github.io/jcc-replay-analyst/
+# For subsequent automatic deploys: just uncomment the push trigger below.
 
 on:
   workflow_dispatch:
   # push:
   #   branches: [main]
 
-# opt-in Node 24 · 消 checkout@v4 / configure-pages@v5 / deploy-pages@v4 / upload-pages-artifact@v3 的 Node 20 deprecation warning
-# GitHub 2026-06-02 起默认 Node 24 · 2026-09-16 移除 Node 20
+# opt-in Node 24 · silences the Node 20 deprecation warning from checkout@v4 / configure-pages@v5 / deploy-pages@v4 / upload-pages-artifact@v3
+# GitHub defaults to Node 24 from 2026-06-02 · removes Node 20 on 2026-09-16
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -42,21 +42,21 @@ jobs:
       - name: Build _site
         run: |
           mkdir -p _site
-          # pitch/index.html 作 landing · pitch/roadmap.html 作工程路线图
+          # pitch/index.html as the landing · pitch/roadmap.html as the engineering roadmap
           cp pitch/index.html _site/index.html
           cp pitch/roadmap.html _site/roadmap.html
           cp pitch/build_log.html _site/build_log.html
-          # 示例 HTML 复盘报告
+          # Sample HTML replay report
           cp examples/sample_report.html _site/sample_report.html
-          # 简单 404 · 避免访问不存在路径崩溃
+          # Simple 404 · avoids a crash when a nonexistent path is visited
           cat > _site/404.html <<'HTML'
-          <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+          <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
           <title>404 · jcc-replay-analyst</title>
           <style>body{background:#0b0912;color:#e8e5d8;font-family:Songti SC,serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}
           a{color:#c9a45d;text-decoration:none;border-bottom:1px dotted #8b7244}
           a:hover{color:#e6c17a}</style></head>
-          <body><div><h1 style="font-size:64px;font-weight:400;color:#c9a45d">四〇四</h1>
-          <p>这页没有 · 回 <a href="./">首页</a> · 或 <a href="./roadmap.html">路线图</a> · 或 <a href="./sample_report.html">样例报告</a></p></div></body></html>
+          <body><div><h1 style="font-size:64px;font-weight:400;color:#c9a45d">404</h1>
+          <p>Page not found · go to <a href="./">home</a> · or the <a href="./roadmap.html">roadmap</a> · or a <a href="./sample_report.html">sample report</a></p></div></body></html>
           HTML
 
       - name: Upload artifact

@@ -1,14 +1,14 @@
-"""B3 smoke demo · 对真 vLLM 跑一次 augment 决策 · 看延迟和输出。
+"""B3 smoke demo · run one augment decision against a real vLLM · observe latency and output.
 
-使用方式：
-    # 先把 vLLM 跑起来（和 A1 共享实例 · 端口 8000）
+Usage:
+    # start vLLM first (shares the instance with A1 · port 8000)
     python scripts/demo_decision.py
 
-需要本地 vLLM 在 http://localhost:8000 上提供 OpenAI 兼容接口 · 模型 Qwen3-VL-4B-FP8。
+Requires a local vLLM serving an OpenAI-compatible API at http://localhost:8000 · model Qwen3-VL-4B-FP8.
 
-Knowledge 加载策略：
-  1. 先尝试 S17 · 失败 / 空数据则回退 S16 + TODO 标注
-  2. 都失败就 knowledge=None · LLM 降级到通用 TFT 规则
+Knowledge loading strategy:
+  1. try S17 first · on failure / empty data, fall back to S16 + a TODO note
+  2. if both fail, knowledge=None · the LLM falls back to generic TFT rules
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-# 允许 `python scripts/demo_decision.py` 直接从 repo 根运行
+# allow `python scripts/demo_decision.py` to run directly from the repo root
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -37,18 +37,18 @@ log = logging.getLogger("demo_decision")
 
 
 def _try_load_s17_knowledge():
-    """尝试加载 S17 knowledge · 成功返回对象 · 失败返回 (None, reason)。
+    """Try to load S17 knowledge · returns the object on success · returns (None, reason) on failure.
 
-    jcc-daida S17 目前有 73 英雄 / 44 羁绊 / 103 comps · 但 `source` 标签是
-    `meta` / `variant`（S16 走 `online_meta` / `meta_seed` / `community`）·
-    现有 `load_s16_knowledge` 的过滤器不匹配 · 即使能 load 也会返回 0 comps。
+    jcc-daida S17 currently has 73 heroes / 44 traits / 103 comps · but the `source` tag is
+    `meta` / `variant` (S16 uses `online_meta` / `meta_seed` / `community`) ·
+    the existing `load_s16_knowledge` filter does not match · so even if it loads it returns 0 comps.
 
-    TODO(A3): 扩展 `load_s16_knowledge(season=...)` 支持 S17 comp source ·
-    或者让 `_build_comps` 的 `accepted_sources` 可配。现在先用手工 adapter。
+    TODO(A3): extend `load_s16_knowledge(season=...)` to support the S17 comp source ·
+    or make `_build_comps`'s `accepted_sources` configurable. For now use a manual adapter.
     """
-    daida_path = os.environ.get("JCC_DAIDA_PATH", "/mnt/c/Users/huannan/Downloads/带走/jcc-daida")
+    daida_path = os.environ.get("JCC_DAIDA_PATH", "/mnt/c/Users/you/Downloads/jcc-daida")
     if not (Path(daida_path) / "client.py").exists():
-        return None, f"jcc-daida 路径不存在 {daida_path}"
+        return None, f"jcc-daida path does not exist {daida_path}"
 
     try:
         import importlib.util
@@ -68,12 +68,12 @@ def _try_load_s17_knowledge():
         augments = client._augments
         raw_comps = client._comps
     except Exception as e:
-        return None, f"加载 S17 失败 · {type(e).__name__}: {e}"
+        return None, f"failed to load S17 · {type(e).__name__}: {e}"
 
     if not heroes:
-        return None, "S17 heroes 为空"
+        return None, "S17 heroes is empty"
 
-    # 手工适配 S17 comp · source 是 meta/variant · 没有 score
+    # manually adapt S17 comps · source is meta/variant · no score
     api_to_cn = {
         h["api_name"]: h["name"]
         for h in heroes
@@ -83,14 +83,14 @@ def _try_load_s17_knowledge():
     from src.knowledge import Comp, S16Knowledge
 
     metas = [c for c in raw_comps if c.get("source") == "meta"]
-    # 按 stats.place 升序（数字越小名次越靠前）
+    # ascending by stats.place (smaller number = higher placement)
     metas.sort(key=lambda c: (c.get("stats") or {}).get("place", 9.0))
 
     comps: list[Comp] = []
     for idx, raw in enumerate(metas[:10], start=1):
         stats = raw.get("stats") or {}
         place = stats.get("place", 5.0)
-        # place 4.0 以下算强 · 转成 S/A/B tier
+        # place below 4.0 counts as strong · map to S/A/B tier
         if place <= 3.5:
             tier = "S"
         elif place <= 4.0:
@@ -103,7 +103,7 @@ def _try_load_s17_knowledge():
         carry_cn = api_to_cn.get(carry_api, carry_api) if carry_api else None
         comps.append(
             Comp(
-                name=f"S17-{idx} · 主 C {carry_cn or '?'}",
+                name=f"S17-{idx} · carry {carry_cn or '?'}",
                 tier=tier,
                 core_units=list(raw.get("unit_names") or []),
                 core_items={},
@@ -125,16 +125,16 @@ def _try_load_s17_knowledge():
 
 
 async def main(base_url: str, model: str, kind: str) -> int:
-    # 知识库：S17 → S16 → None
+    # knowledge: S17 -> S16 -> None
     k, reason = _try_load_s17_knowledge()
     if k is None:
-        log.warning("S17 知识库加载失败 · 回退 S16 · reason=%s", reason)
+        log.warning("S17 knowledge failed to load · falling back to S16 · reason=%s", reason)
         k = load_s16_knowledge()
         if k is None:
-            log.warning("S16 知识库也失败 · knowledge=None · LLM 降级到通用规则")
+            log.warning("S16 knowledge also failed · knowledge=None · LLM falls back to generic rules")
     else:
         log.info(
-            "S17 知识库就绪 · %d heroes · %d comps · label=%s",
+            "S17 knowledge ready · %d heroes · %d comps · label=%s",
             len(k.all_units), len(k.comps), k.season_label,
         )
 
@@ -172,14 +172,14 @@ async def main(base_url: str, model: str, kind: str) -> int:
     t0 = time.time()
     advice = await llm.decide(ws, ctx)
     dt = time.time() - t0
-    print(f"耗时: {dt:.2f}s")
+    print(f"elapsed: {dt:.2f}s")
     print(advice.model_dump_json(indent=2))
 
     if advice.confidence == 0.0 and "降级" in advice.reasoning:
-        print("\n[WARN] Fallback 被触发 · LLM 不可用或输出非法")
+        print("\n[WARN] fallback triggered · LLM unavailable or output invalid")
         return 2
     if dt > 3.0:
-        print(f"\n[WARN] 耗时 {dt:.2f}s 超过 3s 预算")
+        print(f"\n[WARN] elapsed {dt:.2f}s exceeds the 3s budget")
     return 0
 
 
